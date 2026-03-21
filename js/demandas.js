@@ -240,10 +240,28 @@ window.executarAcaoOS = async function(modo) {
         await gerarPDFOS(osPrintAtualId, desc, mat);
     } else {
         fecharModalImpressao();
-        const pw   = window.open('', '_blank');
         const html = gerarHTMLOS(osPrintAtualId, desc, mat);
+        const pw   = window.open('', '_blank');
         if (pw && !pw.closed) {
-            pw.document.open(); pw.document.write(html); pw.document.close();
+            pw.document.open();
+            pw.document.write(html);
+            pw.document.close();
+            // Aguarda imagens carregarem e dispara impressão diretamente
+            const tentarImprimir = () => {
+                try {
+                    const imgs = pw.document.images;
+                    const total = imgs.length;
+                    if (total === 0) { pw.focus(); pw.print(); return; }
+                    let loaded = 0;
+                    const check = () => { loaded++; if (loaded >= total) { pw.focus(); pw.print(); } };
+                    for (let i = 0; i < total; i++) {
+                        if (imgs[i].complete) { check(); }
+                        else { imgs[i].addEventListener('load', check); imgs[i].addEventListener('error', check); }
+                    }
+                } catch(e) { pw.focus(); pw.print(); }
+            };
+            if (pw.document.readyState === 'complete') tentarImprimir();
+            else pw.addEventListener('load', tentarImprimir);
         } else {
             imprimirViaOverlay(html);
         }
