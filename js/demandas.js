@@ -540,13 +540,24 @@ function gerarHTMLOS(id, descricao, materiais) {
     const chks = montarCheckboxes(d);
     return `<!DOCTYPE html><html lang="pt-BR"><head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <base href="${baseHref}">
 <title>O.S. ${d.numero_os || d.id}</title>
 <style>
-  body{font-family:Arial,sans-serif;font-size:12px;margin:0;padding:0;color:#000;}
-  @page{size:A4;margin:8mm 8mm 8mm 8mm;}
-  @media print{body{print-color-adjust:exact;-webkit-print-color-adjust:exact;}}
-  .os-container{border:2px solid #000;max-width:196mm;margin:0 auto;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;width:100%;background:#fff;}
+  body{font-family:Arial,sans-serif;font-size:12px;color:#000;padding:8mm;}
+  @page{size:A4 portrait;margin:8mm;}
+  @media print{
+    html,body{padding:0;margin:0;}
+    body{print-color-adjust:exact;-webkit-print-color-adjust:exact;}
+    .os-container{width:100%;border:2px solid #000;page-break-inside:avoid;}
+  }
+  @media screen{
+    body{padding:10px;background:#e0e0e0;}
+    .os-wrapper{background:#fff;width:210mm;min-height:297mm;margin:0 auto;padding:8mm;box-shadow:0 0 20px rgba(0,0,0,0.3);}
+  }
+  .os-container{border:2px solid #000;width:100%;}
   .os-grid-row{display:flex;border-bottom:1px solid #000;}
   .os-grid-row.border-thick{border-bottom:2px solid #000;}
   .os-cell{padding:4px 6px;min-height:28px;display:flex;flex-direction:column;justify-content:center;}
@@ -576,6 +587,7 @@ function gerarHTMLOS(id, descricao, materiais) {
   .os-footer-print{text-align:center;font-size:7px;color:#666;margin-top:4px;font-style:italic;}
 </style>
 </head><body>
+<div class="os-wrapper">
 <div class="os-container">
   <div class="os-grid-row border-thick">
     <div class="os-logo-box"><img src="${baseHref}brasao.jpg" alt="SP"></div>
@@ -640,7 +652,9 @@ function gerarHTMLOS(id, descricao, materiais) {
     <div class="os-sig-box"><div class="os-sig-line">SOLICITANTE / RECEBEDOR<span>Atesto a conformidade</span></div></div>
   </div>
 </div>
+</div><!-- /os-container -->
 <div class="os-footer-print">Documento impresso em ${new Date().toLocaleString('pt-BR')} | DIVISÃO DE ZELADORIA — COGESPA</div>
+</div><!-- /os-wrapper -->
 <script>
   window.addEventListener('load', function() {
     var imgs = document.images, total = imgs.length, loaded = 0;
