@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Divisão de Zeladoria | Dzel</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <!-- Dependências externas -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Estilos -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+</head>
+<body>
+
+    <div id="modal-print" class="modal-overlay no-print">
+        <div class="modal-box">
+            <h3 style="color:var(--text-primary); margin-bottom: 0.5rem;"><i class="fas fa-file-alt" style="color:var(--accent);"></i> Preencher O.S.</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.25rem;">Preencha os campos abaixo. Se preferir preencher à mão, deixe em branco.</p>
+            <label style="font-size:0.75rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Descrição Detalhada dos Serviços Executados:</label>
+            <textarea id="print-input-descricao" rows="4" placeholder="Ex: Foi realizada a troca da fechadura e lubrificação das dobradiças..." style="margin-bottom: 1rem;"></textarea>
+            <label style="font-size:0.75rem; font-weight:700; color:var(--text-secondary); display:block; margin-bottom:4px;">Materiais e Peças Utilizados (Reposição):</label>
+            <textarea id="print-input-materiais" rows="3" placeholder="Ex: 01 Fechadura Stam, 01 Óleo lubrificante..." style="margin-bottom: 1.25rem;"></textarea>
+
+            <!-- Dois botões de ação separados por função -->
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+                <button id="btn-acao-imprimir" onclick="executarAcaoOS('print')"
+                    style="flex:1; min-width:140px; background:linear-gradient(135deg,#475569,#1e293b); color:white; border:none; padding:0.75rem 1rem; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.875rem; font-family:'Plus Jakarta Sans',sans-serif; display:flex; align-items:center; justify-content:center; gap:8px; transition:all 0.2s;">
+                    <i class="fas fa-print"></i> Imprimir <span style="font-size:0.75rem; opacity:0.7;">(PC)</span>
+                </button>
+                <button id="btn-acao-pdf" onclick="executarAcaoOS('pdf')"
+                    style="flex:1; min-width:140px; background:linear-gradient(135deg,#dc2626,#991b1b); color:white; border:none; padding:0.75rem 1rem; border-radius:8px; cursor:pointer; font-weight:700; font-size:0.875rem; font-family:'Plus Jakarta Sans',sans-serif; display:flex; align-items:center; justify-content:center; gap:8px; transition:all 0.2s;">
+                    <i class="fas fa-file-pdf"></i> Baixar PDF <span style="font-size:0.75rem; opacity:0.7;">(Celular)</span>
+                </button>
+            </div>
+            <button onclick="fecharModalImpressao()" style="width:100%; background:#f1f5f9; color:var(--text-secondary); border:1px solid var(--border); padding:0.65rem; border-radius:8px; cursor:pointer; font-weight:600; font-family:'Plus Jakarta Sans',sans-serif; font-size:0.875rem;">
+                Cancelar
+            </button>
+        </div>
+    </div>
+
+    <!-- Área de impressão (desktop fallback) -->
+    <div id="area-impressao">
+        <div class="os-container">
+            <div class="os-grid-row border-thick">
+                <div class="os-logo-box"><img src="brasao.jpg" alt="Logo SP"></div>
+                <div class="os-header-center">
+                    <h3>GOVERNO DO ESTADO DE SÃO PAULO</h3>
+                    <h4>SECRETARIA DA EDUCAÇÃO</h4>
+                    <p>COORDENADORIA GERAL DE SUPORTE ADMINISTRATIVO - DIVISÃO DE ZELADORIA</p>
+                </div>
+                <div class="os-header-right">
+                    <p id="print-top-text">ORDEM DE SERVIÇO</p>
+                    <img id="print-logo-empresa" src="">
+                    <h3 class="os-numero"><span id="print-os-label">Nº </span><span id="print-id"></span></h3>
+                </div>
+            </div>
+            <div class="os-secao-titulo">1. IDENTIFICAÇÃO DA SOLICITAÇÃO</div>
+            <div class="os-grid-row">
+                <div class="os-cell" style="flex:0 0 25%;max-width:25%;border-right:1px solid #000;">
+                    <div class="os-label">DATA E HORA DE ABERTURA</div><div class="os-value" id="print-data-hora"></div>
+                </div>
+                <div class="os-cell" style="flex:0 0 50%;max-width:50%;border-right:1px solid #000;">
+                    <div class="os-label">SOLICITANTE / CONTATO</div><div class="os-value" id="print-solicitante"></div>
+                </div>
+                <div class="os-cell" style="flex:0 0 25%;max-width:25%;">
+                    <div class="os-label">PRIORIDADE NO SISTEMA</div><div class="os-value" id="print-prioridade"></div>
+                </div>
+            </div>
+            <div class="os-grid-row border-thick">
+                <div class="os-cell" style="flex:0 0 75%;max-width:75%;border-right:1px solid #000;">
+                    <div class="os-label">UNIDADE / SETOR DE ORIGEM</div><div class="os-value" id="print-setor"></div>
+                </div>
+                <div class="os-cell" style="flex:0 0 25%;max-width:25%;">
+                    <div class="os-label">STATUS ATUAL</div><div class="os-value" id="print-status"></div>
+                </div>
+            </div>
+            <div class="os-secao-titulo">2. DESCRIÇÃO DA DEMANDA (PREENCHIMENTO PELO SISTEMA)</div>
+            <div class="os-grid-row border-thick" style="min-height:80px;">
+                <div class="os-cell" style="flex:0 0 100%;max-width:100%;">
+                    <div class="os-value destaque" id="print-titulo"></div>
+                </div>
+            </div>
+            <div class="os-secao-titulo">3. PARECER TÉCNICO E EXECUÇÃO (PREENCHIMENTO PELA EQUIPE)</div>
+            <div class="os-grid-row">
+                <div class="os-cell" style="flex:0 0 100%;max-width:100%;">
+                    <div class="os-label">EQUIPE RESPONSÁVEL / CONTRATADA ATRIBUÍDA</div>
+                    <div class="os-checkbox-grid">
+                        <div><span id="chk-limpeza">☐</span> LIMPEZA PREDIAL</div>
+                        <div><span id="chk-ar">☐</span> AR CONDICIONADO</div>
+                        <div><span id="chk-manut">☐</span> MANUTENÇÃO PREDIAL</div>
+                        <div><span id="chk-elevador">☐</span> MANUT. DE ELEVADORES</div>
+                        <div><span id="chk-ti">☐</span> SUPORTE TI</div>
+                        <div><span id="chk-telefonia">☐</span> TELEFONIA</div>
+                        <div><span id="chk-extintores">☐</span> MANUT. E RECARGA EXTINTORES</div>
+                        <div>☐ OUTROS: ______________________</div>
+                    </div>
+                </div>
+            </div>
+            <div class="os-grid-row border-thick">
+                <div class="os-cell" style="flex:0 0 100%;max-width:100%;">
+                    <div class="os-label">LOCAL DE ATUAÇÃO / PRÉDIO VINCULADO</div>
+                    <div class="os-checkbox-grid locais">
+                        <div>☐ SEDE</div><div>☐ AROUCHE</div><div>☐ EFAPE</div><div>☐ ARMÊNIA</div>
+                        <div>☐ CASA VERDE</div><div>☐ SÃO DOMINGOS</div><div>☐ CAJAMAR</div><div>☐ TENENTE PENA</div>
+                        <div>☐ CENTRO OESTE</div><div>☐ CAPE</div>
+                        <div style="grid-column:span 2;">☐ OUTRO: ___________________________</div>
+                    </div>
+                </div>
+            </div>
+            <div class="os-grid-row row-expand">
+                <div class="os-cell" style="flex:0 0 50%;max-width:50%;border-right:1px solid #000;">
+                    <div class="os-label">DESCRIÇÃO DETALHADA DOS SERVIÇOS EXECUTADOS</div>
+                    <div class="os-value" id="print-val-descricao" style="text-transform:none;white-space:pre-wrap;margin-top:5px;font-size:12px;font-weight:normal;"></div>
+                </div>
+                <div class="os-cell" style="flex:0 0 50%;max-width:50%;">
+                    <div class="os-label">MATERIAIS E PEÇAS UTILIZADOS (REPOSIÇÃO)</div>
+                    <div class="os-value" id="print-val-materiais" style="text-transform:none;white-space:pre-wrap;margin-top:5px;font-size:12px;font-weight:normal;"></div>
+                </div>
+            </div>
+            <div class="os-secao-titulo top-border">4. TERMO DE ENCERRAMENTO E ACEITE FISCAL</div>
+            <div class="os-grid-row">
+                <div class="os-cell" style="flex:0 0 25%;max-width:25%;border-right:1px solid #000;text-align:center;justify-content:center;">
+                    <div class="os-label" style="text-align:center;">INÍCIO DO ATENDIMENTO</div>
+                    <div style="margin-top:15px;font-size:13px;">___/___/20___ ÀS ___:___</div>
+                </div>
+                <div class="os-cell" style="flex:0 0 25%;max-width:25%;border-right:1px solid #000;text-align:center;justify-content:center;">
+                    <div class="os-label" style="text-align:center;">TÉRMINO DO ATENDIMENTO</div>
+                    <div style="margin-top:15px;font-size:13px;">___/___/20___ ÀS ___:___</div>
+                </div>
+                <div class="os-cell" style="flex:0 0 50%;max-width:50%;">
+                    <div class="os-label">OBSERVAÇÕES FINAIS / PENDÊNCIAS</div>
+                </div>
+            </div>
+            <div class="os-grid-row os-signatures">
+                <div class="os-sig-box"><div class="os-sig-line">TÉCNICO EXECUTOR<span>Nome legível / Matrícula / Empresa</span></div></div>
+                <div class="os-sig-box"><div class="os-sig-line">GESTOR / FISCAL (DZEL)<span>Carimbo e Assinatura</span></div></div>
+                <div class="os-sig-box"><div class="os-sig-line">SOLICITANTE / RECEBEDOR<span>Atesto a conformidade do serviço</span></div></div>
+            </div>
+        </div>
+        <div class="os-footer-print">Documento impresso em <span id="print-hoje"></span></div>
+    </div>
+
+    <!-- Login -->
+    <div id="login-overlay">
+        <div class="login-box">
+            <div class="login-logo"><i class="fas fa-building"></i></div>
+            <h2>Acesso Restrito</h2>
+            <p>Divisão de Zeladoria — COGESPA</p>
+            <input type="text" id="login-email" placeholder="E-mail institucional" onkeyup="checkEnter(event)" autocomplete="email">
+            <input type="password" id="login-pass" placeholder="Senha" onkeyup="checkEnter(event)" autocomplete="current-password">
+            <button onclick="fazerLogin()" class="login-btn"><i class="fas fa-sign-in-alt"></i> Entrar</button>
+            <p id="login-error" class="login-error"><i class="fas fa-exclamation-circle"></i> E-mail ou senha incorretos!</p>
+        </div>
+    </div>
+
+    <!-- Mobile overlay (fecha sidebar) -->
+    <div id="mobile-overlay" class="no-print" onclick="toggleSidebar()"></div>
+
+    <div id="app-content">
+
+        <header class="no-print">
+            <div class="header-left">
+                <button id="mobile-menu-btn" onclick="toggleSidebar()" aria-label="Abrir menu"><i class="fas fa-bars"></i></button>
+                <h1>
+                    <i class="fas fa-building"></i>
+                    <span>COGESPA — DIV. ZELADORIA</span>
+                    <i class="fas fa-shield-alt hide-mobile" style="font-size:0.7rem; color:var(--success);" title="Conexão Segura"></i>
+                </h1>
+            </div>
+            <div class="header-right">
+                <span id="date-display" class="hide-mobile" style="font-size:0.78rem; color:var(--text-muted);"></span>
+                <div class="header-user">
+                    <div class="header-avatar" id="avatar-initials">U</div>
+                    <div class="hide-mobile">
+                        <small id="user-display"></small>
+                        <small id="user-role-display"></small>
+                    </div>
+                </div>
+                <a href="#" onclick="logout()" class="logout-btn"><i class="fas fa-sign-out-alt"></i> <span class="hide-mobile">Sair</span></a>
+            </div>
+        </header>
+
+        <nav class="nav-tabs no-print">
+            <div class="sidebar-brand">
+                <div class="sidebar-brand-logo">
+                    <div class="sidebar-brand-icon"><i class="fas fa-building"></i></div>
+                    <div class="sidebar-brand-text">
+                        <strong>Divisão de Zeladoria</strong>
+                        <span>Cogespa</span>
+                    </div>
+                </div>
+            </div>
+            <div class="sidebar-section-label">Visão Geral</div>
+            <button id="tab-dashboard" class="tab-btn hidden-tab" onclick="switchTab('dashboard')"><i class="fas fa-chart-pie"></i> Dashboard</button>
+            <button id="tab-demandas" class="tab-btn" onclick="switchTab('demandas')"><i class="fas fa-clipboard-list"></i> Demandas (Geral)</button>
+            <div class="sidebar-section-label">Técnico</div>
+            <button id="tab-predial" class="tab-btn hidden-tab" onclick="switchTab('predial')"><i class="fas fa-hammer"></i> Predial</button>
+            <button id="tab-ar" class="tab-btn hidden-tab" onclick="switchTab('ar')"><i class="fas fa-snowflake"></i> Ar Condicionado</button>
+            <button id="tab-limpeza" class="tab-btn hidden-tab" onclick="switchTab('limpeza')"><i class="fas fa-broom"></i> Limpeza</button>
+            <div class="sidebar-section-label">Controle</div>
+            <button id="tab-visitantes" class="tab-btn" onclick="switchTab('visitantes')"><i class="fas fa-users"></i> Recepção</button>
+            <button id="tab-veiculos" class="tab-btn" onclick="switchTab('veiculos')"><i class="fas fa-car"></i> Garagem</button>
+            <button id="tab-eventos" class="tab-btn" onclick="switchTab('eventos')"><i class="fas fa-calendar-alt"></i> Eventos</button>
+            <button id="tab-crachas" class="tab-btn hidden-tab" onclick="switchTab('crachas')"><i class="fas fa-id-card"></i> Crachás</button>
+            <button id="tab-ocorrencias" class="tab-btn hidden-tab" onclick="switchTab('ocorrencias')"><i class="fas fa-triangle-exclamation"></i> Ocorrências</button>
+            <div class="sidebar-section-label">Admin</div>
+            <button id="tab-auditoria" class="tab-btn hidden-tab" onclick="switchTab('auditoria')"><i class="fas fa-history"></i> Auditoria</button>
+            <button id="tab-usuarios" class="tab-btn hidden-tab" onclick="switchTab('usuarios')"><i class="fas fa-user-cog"></i> Usuários</button>
+        </nav>
+
+        <main class="no-print">
+
+            <section id="dashboard" class="section">
+                <div class="page-header">
+                    <div class="page-header-left">
+                        <h2><i class="fas fa-chart-line" style="color:var(--accent); margin-right:8px;"></i>Relatório Consolidado</h2>
+                        <p>Divisão de Zeladoria — Dados em Tempo Real</p>
+                    </div>
+                    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+                        <div>
+                            <label style="font-size:0.72rem;font-weight:700;color:var(--text-muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Filtrar Período:</label>
+                            <input type="month" id="dash-filtro-mes" onchange="renderizarDashboard()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;height:38px;font-size:0.85rem;">
+                        </div>
+                        <button onclick="imprimirDashboard()" class="btn-primary" style="padding:0 16px;font-size:0.82rem;height:38px;flex:unset;width:auto;background:var(--secondary);">
+                            <i class="fas fa-print"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="kpi-grid">
+                    <div class="kpi-card"><div><div class="kpi-card-label">Total Atendimentos</div><div class="kpi-card-value" id="kpi-total-geral">0</div><div class="kpi-card-sub">Soma de todos os setores</div></div><div class="kpi-card-icon" style="background:#eff6ff;"><i class="fas fa-layer-group" style="color:var(--accent);"></i></div></div>
+                    <div class="kpi-card"><div><div class="kpi-card-label">Eventos Realizados</div><div class="kpi-card-value" id="kpi-total-eventos">0</div><div class="kpi-card-sub" id="kpi-publico-eventos">0 Participantes</div></div><div class="kpi-card-icon" style="background:#f5f3ff;"><i class="fas fa-calendar-check" style="color:#8b5cf6;"></i></div></div>
+                    <div class="kpi-card"><div><div class="kpi-card-label">Chamados Manutenção</div><div class="kpi-card-value" id="kpi-total-manutencao">0</div><div class="kpi-card-sub">Predial + Ar Condicionado</div></div><div class="kpi-card-icon" style="background:#fff7ed;"><i class="fas fa-tools" style="color:var(--predial);"></i></div></div>
+                    <div class="kpi-card"><div><div class="kpi-card-label">Crachás Emitidos</div><div class="kpi-card-value" id="kpi-total-crachas">0</div><div class="kpi-card-sub">Solicitações atendidas</div></div><div class="kpi-card-icon" style="background:#f0fdf4;"><i class="fas fa-id-card" style="color:var(--success);"></i></div></div>
+                </div>
+                <div class="charts-grid">
+                    <div class="chart-card"><h3><i class="fas fa-bar-chart" style="color:var(--accent);margin-right:6px;"></i>Volume de Atendimento por Setor</h3><div class="chart-wrapper-bar"><canvas id="chartVolumeSetor"></canvas></div></div>
+                    <div class="chart-card"><h3><i class="fas fa-car" style="color:var(--estacionado);margin-right:6px;"></i>Garagem: Perfil de Acesso</h3><div class="chart-wrapper-dnut"><canvas id="chartGaragemPerfil"></canvas></div><div style="text-align:center;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);"><p style="font-size:0.75rem;color:var(--text-muted);">Total de Veículos no Período</p><p id="total-garagem-label" style="font-weight:800;font-size:1.75rem;color:var(--text-primary);font-family:'JetBrains Mono',monospace;">0</p></div></div>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-mini" style="border-left-color:#475569;"><h4>Segurança Eletrônica (CFTV)</h4><p>161 <small>Câmeras</small></p><span>Monitoramento 24h</span></div>
+                    <div class="stat-mini" style="border-left-color:var(--accent);"><h4>Fluxo Médio Diário (Garagem)</h4><p id="kpi-fluxo-garagem">0 <small>Veíc/Dia</small></p><span>Baseado na movimentação total</span></div>
+                    <div class="stat-mini" style="border-left-color:var(--limpeza);"><h4>Limpeza (Chamados)</h4><p id="kpi-total-limpeza">0 <small>Solicitações</small></p><span>Limpeza + Copas</span></div>
+                </div>
+            </section>
+
+            <section id="demandas" class="section">
+                <div class="page-header"><div class="page-header-left"><h2>Demandas — Geral</h2><p>Controle de ordens de serviço e solicitações</p></div></div>
+                <div class="dashboard-panel">
+                    <div class="metric-card card-total"><div class="metric-info"><h3>Total</h3><p id="dash-demanda-total">...</p></div><i class="fas fa-folder-open metric-icon"></i></div>
+                    <div class="metric-card card-pendente"><div class="metric-info"><h3>Pendentes</h3><p id="dash-demanda-pendente">...</p></div><i class="fas fa-clock metric-icon"></i></div>
+                    <div class="metric-card card-andamento"><div class="metric-info"><h3>Em Andamento</h3><p id="dash-demanda-andamento">...</p></div><i class="fas fa-tools metric-icon"></i></div>
+                    <div class="metric-card card-concluido"><div class="metric-info"><h3>Concluídas</h3><p id="dash-demanda-concluido">...</p></div><i class="fas fa-check-circle metric-icon"></i></div>
+                </div>
+                <div class="card">
+                    <h2 id="titulo-form-demanda"><i class="fas fa-plus-circle"></i> Nova Solicitação (Geral)</h2>
+                    <form id="form-demanda">
+                        <input type="hidden" id="demanda-id-edit" value="">
+                        <div class="form-grid">
+                            <input type="text" id="demanda-numero-os" placeholder="Nº da O.S. (Opcional)">
+                            <input type="text" id="demanda-titulo" placeholder="Descrição do Serviço" required>
+                            <input type="text" id="demanda-setor" placeholder="Local / Setor" required>
+                            <input type="text" id="demanda-solicitante" placeholder="Nome do Solicitante" required>
+                            <input type="text" id="demanda-contratada" placeholder="Empresa Executante / Contratada" list="lista-contratadas">
+                            <datalist id="lista-contratadas">
+                                <option value="EQUIPE INTERNA"><option value="LIMPEZA"><option value="MANUTENÇÃO PREDIAL">
+                                <option value="AR CONDICIONADO"><option value="ELEVADORES"><option value="VIGILÂNCIA">
+                                <option value="COPA"><option value="SUPORTE TI"><option value="TELEFONIA">
+                                <option value="BOMBEIRO"><option value="PURIFICADOR DE ÁGUA">
+                            </datalist>
+                            <select id="demanda-prioridade">
+                                <option value="Baixa">Prioridade Baixa</option>
+                                <option value="Média">Prioridade Média</option>
+                                <option value="Alta">Prioridade Alta</option>
+                            </select>
+                            <div><label style="font-size:0.8rem">Data</label><input type="date" id="demanda-data" required></div>
+                            <div><label style="font-size:0.8rem">Horário</label><input type="time" id="demanda-hora" required></div>
+                            <select id="demanda-status-edit" style="display:none">
+                                <option value="Pendente">Pendente</option>
+                                <option value="Em Andamento">Em Andamento</option>
+                                <option value="Concluído">Concluído</option>
+                            </select>
+                        </div>
+                        <div class="btn-container">
+                            <button type="submit" class="btn-primary" id="btn-submit-demanda">Registrar Demanda</button>
+                            <button type="button" class="btn-cancel" id="btn-cancel-demanda" onclick="cancelarEdicaoDemanda()">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card">
+                    <div class="filter-container">
+                        <div class="filter-group"><label>Mês Ref:</label><input type="month" id="filtro-mes-demanda" onchange="window.renderizarApenasDemandas()"></div>
+                        <div class="filter-group"><label>Buscar (Serviço/Setor):</label><input type="text" id="filtro-texto-demanda" placeholder="Ex: Lâmpada, Copa..."></div>
+                        <div class="filter-group"><label>Status:</label>
+                            <select id="filtro-status-demanda" onchange="window.renderizarApenasDemandas()">
+                                <option value="">Todos</option><option value="Pendente">Pendente</option>
+                                <option value="Em Andamento">Em Andamento</option><option value="Concluído">Concluído</option>
+                            </select>
+                        </div>
+                        <button class="btn-excel" onclick="exportarExcel('demandas')"><i class="fas fa-file-excel"></i> Exportar</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="tabela-demandas">
+                            <thead><tr><th>Data</th><th>Prioridade</th><th>Serviço / Contratada</th><th>Status</th><th>Tempo</th><th>Ações</th></tr></thead>
+                            <tbody><tr><td colspan="6" class="loading">Carregando...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="predial" class="section">
+                <div class="page-header"><div class="page-header-left"><h2 style="color:var(--predial)"><i class="fas fa-hammer" style="margin-right:8px;"></i>Manutenção Predial</h2><p>Controle de chamados de manutenção predial</p></div></div>
+                <div class="dashboard-panel">
+                    <div class="metric-card card-total"><div class="metric-info"><h3>Total</h3><p id="dash-predial-total">...</p></div><i class="fas fa-folder-open metric-icon"></i></div>
+                    <div class="metric-card card-pendente"><div class="metric-info"><h3>Pendentes</h3><p id="dash-predial-pendente">...</p></div><i class="fas fa-clock metric-icon"></i></div>
+                    <div class="metric-card card-andamento"><div class="metric-info"><h3>Em Andamento</h3><p id="dash-predial-andamento">...</p></div><i class="fas fa-tools metric-icon"></i></div>
+                    <div class="metric-card card-concluido"><div class="metric-info"><h3>Concluídas</h3><p id="dash-predial-concluido">...</p></div><i class="fas fa-check-circle metric-icon"></i></div>
+                </div>
+                <div class="card" style="border-top:3px solid var(--predial);">
+                    <h2 style="color:var(--predial);"><i class="fas fa-hammer" style="color:var(--predial)"></i> Nova Solicitação — Manutenção Predial</h2>
+                    <form id="form-predial">
+                        <div class="form-grid">
+                            <input type="text" id="predial-numero-os" placeholder="Nº da O.S. (Opcional)">
+                            <input type="text" id="predial-titulo" placeholder="Descrição do Serviço" required>
+                            <input type="text" id="predial-setor" placeholder="Local / Setor" required>
+                            <input type="text" id="predial-solicitante" placeholder="Nome do Solicitante" required>
+                            <select id="predial-prioridade"><option value="Baixa">Prioridade Baixa</option><option value="Média">Prioridade Média</option><option value="Alta">Prioridade Alta</option></select>
+                            <div><label style="font-size:0.8rem">Data</label><input type="date" id="predial-data" required></div>
+                            <div><label style="font-size:0.8rem">Horário</label><input type="time" id="predial-hora" required></div>
+                        </div>
+                        <button type="submit" class="btn-primary" style="background:linear-gradient(135deg,var(--predial),#dc2626);flex:unset;width:auto;padding:0.75rem 1.75rem;">Registrar Manutenção</button>
+                    </form>
+                </div>
+                <div class="card">
+                    <div class="filter-container">
+                        <div class="filter-group"><label>Mês Ref:</label><input type="month" id="filtro-mes-predial" onchange="window.renderizarAbasEspecificas()"></div>
+                        <div class="filter-group"><label>Buscar:</label><input type="text" id="filtro-busca-predial" onkeyup="window.renderizarAbasEspecificas()" placeholder="Filtrar..."></div>
+                        <div class="filter-group"><label>Status:</label>
+                            <select id="filtro-status-predial" onchange="window.renderizarAbasEspecificas()">
+                                <option value="">Todos</option><option value="Pendente">Pendente</option><option value="Em Andamento">Em Andamento</option><option value="Concluído">Concluído</option>
+                            </select>
+                        </div>
+                        <button class="btn-excel" onclick="exportarExcel('predial')"><i class="fas fa-file-excel"></i> Exportar</button>
+                    </div>
+                    <div class="table-container"><table id="tabela-predial"><thead><tr><th>Data</th><th>Serviço</th><th>Solicitante</th><th>Status</th><th>Tempo</th><th>Ações</th></tr></thead><tbody></tbody></table></div>
+                </div>
+            </section>
+
+            <section id="ar" class="section">
+                <div class="page-header"><div class="page-header-left"><h2 style="color:var(--ar)"><i class="fas fa-snowflake" style="margin-right:8px;"></i>Ar Condicionado</h2><p>Controle de chamados de ar-condicionado</p></div></div>
+                <div class="dashboard-panel">
+                    <div class="metric-card card-total"><div class="metric-info"><h3>Total</h3><p id="dash-ar-total">...</p></div><i class="fas fa-folder-open metric-icon"></i></div>
+                    <div class="metric-card card-pendente"><div class="metric-info"><h3>Pendentes</h3><p id="dash-ar-pendente">...</p></div><i class="fas fa-clock metric-icon"></i></div>
+                    <div class="metric-card card-andamento"><div class="metric-info"><h3>Em Andamento</h3><p id="dash-ar-andamento">...</p></div><i class="fas fa-tools metric-icon"></i></div>
+                    <div class="metric-card card-concluido"><div class="metric-info"><h3>Concluídas</h3><p id="dash-ar-concluido">...</p></div><i class="fas fa-check-circle metric-icon"></i></div>
+                </div>
+                <div class="card" style="border-top:3px solid var(--ar);">
+                    <h2 style="color:var(--ar);"><i class="fas fa-snowflake" style="color:var(--ar)"></i> Nova Solicitação — Ar Condicionado</h2>
+                    <form id="form-ar">
+                        <div class="form-grid">
+                            <input type="text" id="ar-numero-os" placeholder="Nº da O.S. (Opcional)">
+                            <input type="text" id="ar-titulo" placeholder="Descrição do Serviço" required>
+                            <input type="text" id="ar-setor" placeholder="Local / Setor" required>
+                            <input type="text" id="ar-solicitante" placeholder="Nome do Solicitante" required>
+                            <select id="ar-prioridade"><option value="Baixa">Prioridade Baixa</option><option value="Média">Prioridade Média</option><option value="Alta">Prioridade Alta</option></select>
+                            <div><label style="font-size:0.8rem">Data</label><input type="date" id="ar-data" required></div>
+                            <div><label style="font-size:0.8rem">Horário</label><input type="time" id="ar-hora" required></div>
+                        </div>
+                        <button type="submit" class="btn-primary" style="background:linear-gradient(135deg,var(--ar),#1d4ed8);flex:unset;width:auto;padding:0.75rem 1.75rem;">Registrar Ar Condicionado</button>
+                    </form>
+                </div>
+                <div class="card">
+                    <div class="filter-container">
+                        <div class="filter-group"><label>Mês Ref:</label><input type="month" id="filtro-mes-ar" onchange="window.renderizarAbasEspecificas()"></div>
+                        <div class="filter-group"><label>Buscar:</label><input type="text" id="filtro-busca-ar" onkeyup="window.renderizarAbasEspecificas()" placeholder="Filtrar..."></div>
+                        <div class="filter-group"><label>Status:</label>
+                            <select id="filtro-status-ar" onchange="window.renderizarAbasEspecificas()">
+                                <option value="">Todos</option><option value="Pendente">Pendente</option><option value="Em Andamento">Em Andamento</option><option value="Concluído">Concluído</option>
+                            </select>
+                        </div>
+                        <button class="btn-excel" onclick="exportarExcel('ar')"><i class="fas fa-file-excel"></i> Exportar</button>
+                    </div>
+                    <div class="table-container"><table id="tabela-ar"><thead><tr><th>Data</th><th>Serviço</th><th>Solicitante</th><th>Status</th><th>Tempo</th><th>Ações</th></tr></thead><tbody></tbody></table></div>
+                </div>
+            </section>
+
+            <section id="limpeza" class="section">
+                <div class="page-header"><div class="page-header-left"><h2 style="color:var(--limpeza)"><i class="fas fa-broom" style="margin-right:8px;"></i>Limpeza</h2><p>Controle de chamados de limpeza e copas</p></div></div>
+                <div class="dashboard-panel">
+                    <div class="metric-card card-total"><div class="metric-info"><h3>Total</h3><p id="dash-limpeza-total">...</p></div><i class="fas fa-folder-open metric-icon"></i></div>
+                    <div class="metric-card card-pendente"><div class="metric-info"><h3>Pendentes</h3><p id="dash-limpeza-pendente">...</p></div><i class="fas fa-clock metric-icon"></i></div>
+                    <div class="metric-card card-andamento"><div class="metric-info"><h3>Em Andamento</h3><p id="dash-limpeza-andamento">...</p></div><i class="fas fa-tools metric-icon"></i></div>
+                    <div class="metric-card card-concluido"><div class="metric-info"><h3>Concluídas</h3><p id="dash-limpeza-concluido">...</p></div><i class="fas fa-check-circle metric-icon"></i></div>
+                </div>
+                <div class="card" style="border-top:3px solid var(--limpeza);">
+                    <h2 style="color:var(--limpeza);"><i class="fas fa-broom" style="color:var(--limpeza)"></i> Nova Solicitação — Limpeza</h2>
+                    <form id="form-limpeza">
+                        <div class="form-grid">
+                            <input type="text" id="limpeza-numero-os" placeholder="Nº da O.S. (Opcional)">
+                            <input type="text" id="limpeza-titulo" placeholder="Descrição do Serviço" required>
+                            <input type="text" id="limpeza-setor" placeholder="Local / Setor" required>
+                            <input type="text" id="limpeza-solicitante" placeholder="Nome do Solicitante" required>
+                            <select id="limpeza-prioridade"><option value="Baixa">Prioridade Baixa</option><option value="Média">Prioridade Média</option><option value="Alta">Prioridade Alta</option></select>
+                            <div><label style="font-size:0.8rem">Data</label><input type="date" id="limpeza-data" required></div>
+                            <div><label style="font-size:0.8rem">Horário</label><input type="time" id="limpeza-hora" required></div>
+                        </div>
+                        <button type="submit" class="btn-primary" style="background:linear-gradient(135deg,var(--limpeza),#059669);flex:unset;width:auto;padding:0.75rem 1.75rem;">Registrar Limpeza</button>
+                    </form>
+                </div>
+                <div class="card">
+                    <div class="filter-container">
+                        <div class="filter-group"><label>Mês Ref:</label><input type="month" id="filtro-mes-limpeza" onchange="window.renderizarAbasEspecificas()"></div>
+                        <div class="filter-group"><label>Buscar:</label><input type="text" id="filtro-busca-limpeza" onkeyup="window.renderizarAbasEspecificas()" placeholder="Filtrar..."></div>
+                        <div class="filter-group"><label>Status:</label>
+                            <select id="filtro-status-limpeza" onchange="window.renderizarAbasEspecificas()">
+                                <option value="">Todos</option><option value="Pendente">Pendente</option><option value="Em Andamento">Em Andamento</option><option value="Concluído">Concluído</option>
+                            </select>
+                        </div>
+                        <button class="btn-excel" onclick="exportarExcel('limpeza')"><i class="fas fa-file-excel"></i> Exportar</button>
+                    </div>
+                    <div class="table-container"><table id="tabela-limpeza"><thead><tr><th>Data</th><th>Serviço</th><th>Solicitante</th><th>Status</th><th>Tempo</th><th>Ações</th></tr></thead><tbody></tbody></table></div>
+                </div>
+            </section>
+
+            <section id="visitantes" class="section">
+                <div class="page-header"><div class="page-header-left"><h2>Recepção de Visitantes</h2><p>Registro e controle de entrada e saída</p></div></div>
+                <div class="dashboard-panel">
+                    <div class="metric-card card-recepcao"><div class="metric-info"><h3>Visitantes Ativos</h3><p id="dash-visitantes-ativos">...</p></div><i class="fas fa-users metric-icon"></i></div>
+                    <div class="metric-card card-total"><div class="metric-info"><h3>Total no Período</h3><p id="dash-visitantes-total">...</p></div><i class="fas fa-list metric-icon"></i></div>
+                </div>
+                <div class="card">
+                    <h2 id="titulo-form-visitante"><i class="fas fa-user-plus"></i> Cadastrar Visitante</h2>
+                    <form id="form-visitante">
+                        <input type="hidden" id="visitante-id-edit" value="">
+                        <div class="foto-container">
+                            <video id="webcam-video" autoplay playsinline></video>
+                            <canvas id="webcam-canvas" style="display:none;"></canvas>
+                            <img id="vis-preview" class="foto-preview" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23eee'/%3E%3Cpath fill='%23ccc' d='M50 50c-13.8 0-25-11.2-25-25s11.2-25 25-25 25 11.2 25 25-11.2 25-25 25zm0 10c16.7 0 50 8.3 50 25v15H0v-15c0-16.7 33.3-25 50-25z'/%3E%3C/svg%3E">
+                            <div class="cam-controls">
+                                <button type="button" id="btn-iniciar-cam" onclick="iniciarCamera()" class="btn-foto"><i class="fas fa-camera"></i> Abrir Câmera</button>
+                                <button type="button" id="btn-capturar-cam" onclick="capturarFoto()" class="btn-primary" style="display:none;padding:6px 14px;font-size:0.8rem;flex:unset;">Capturar</button>
+                                <label for="vis-foto-input" class="btn-foto"><i class="fas fa-upload"></i> Enviar Arquivo</label>
+                            </div>
+                            <input type="file" id="vis-foto-input" accept="image/*">
+                            <input type="hidden" id="vis-foto-base64">
+                        </div>
+                        <div class="form-grid">
+                            <input type="text" id="vis-nome" placeholder="Nome Completo" required>
+                            <input type="text" id="vis-doc" placeholder="Documento (RG/CPF)" required>
+                            <input type="text" id="vis-empresa" placeholder="Empresa (Opcional)">
+                            <input type="text" id="vis-contato" placeholder="E-mail / Telefone">
+                            <input type="text" id="vis-responsavel" placeholder="Pessoa Responsável (Anfitrião)" required>
+                            <input type="text" id="vis-finalidade" placeholder="Finalidade da Visita" required>
+                            <div><label style="font-size:0.8rem">Hora Entrada (Automático)</label><input type="datetime-local" id="vis-entrada" required></div>
+                            <select id="vis-status-edit" style="display:none"><option value="Ativo">Na Empresa</option><option value="Saiu">Saiu</option></select>
+                        </div>
+                        <div class="btn-container">
+                            <button type="submit" class="btn-primary" id="btn-submit-vis">Registrar Entrada</button>
+                            <button type="button" class="btn-cancel" id="btn-cancel-vis" onclick="cancelarEdicaoVisitante()">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card">
+                    <div class="filter-container">
+                        <div class="filter-group"><label>Mês de Referência:</label><input type="month" id="filtro-mes-vis" onchange="window.renderizarApenasVisitantes()"></div>
+                        <div class="filter-group"><label>Buscar (Nome/Doc/Empresa):</label><input type="text" id="filtro-busca-vis" onkeyup="window.renderizarApenasVisitantes()" placeholder="Digite para filtrar..."></div>
+                        <button id="btn-export-visitantes" class="btn-excel" onclick="exportarExcel('visitantes')"><i class="fas fa-file-excel"></i> Exportar</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="tabela-visitantes">
+                            <thead><tr><th>Status</th><th>Visitante</th><th>Empresa/Doc</th><th>Responsável/Finalidade</th><th>Entrada/Saída</th><th>Ação</th></tr></thead>
+                            <tbody><tr><td colspan="6" class="loading">Carregando...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="veiculos" class="section">
+                <div class="page-header"><div class="page-header-left"><h2>Controle de Garagem</h2><p>Registro de entrada e saída de veículos</p></div></div>
+                <div class="dashboard-panel">
+                    <div class="metric-card card-estacionado"><div class="metric-info"><h3>Estacionados</h3><p id="dash-frota-estacionados">...</p></div><i class="fas fa-parking metric-icon"></i></div>
+                    <div class="metric-card card-total"><div class="metric-info"><h3>Acessos</h3><p id="dash-frota-total">...</p></div><i class="fas fa-car metric-icon"></i></div>
+                    <div class="metric-card card-servidor"><div class="metric-info"><h3>Servidores</h3><p id="dash-servidor-count">...</p></div><i class="fas fa-id-badge metric-icon"></i></div>
+                    <div class="metric-card card-visitante"><div class="metric-info"><h3>Visitantes</h3><p id="dash-visitante-count">...</p></div><i class="fas fa-user-tag metric-icon"></i></div>
+                </div>
+                <div class="card">
+                    <h2 id="titulo-form-veiculo"><i class="fas fa-parking"></i> Registrar Entrada (Garagem)</h2>
+                    <form id="form-veiculo">
+                        <input type="hidden" id="veiculo-id-edit" value="">
+                        <div class="tipo-selector">
+                            <label class="radio-label"><input type="radio" name="tipoFluxo" id="radio-servidor" value="servidor" checked onclick="atualizarLabels()"><span style="color:var(--servidor);font-weight:700;">Entrada Servidor</span></label>
+                            <label class="radio-label"><input type="radio" name="tipoFluxo" id="radio-visitante" value="visitante" onclick="atualizarLabels()"><span style="color:var(--visitante);font-weight:700;">Entrada Visitante</span></label>
+                        </div>
+                        <div class="form-grid">
+                            <input type="text" id="veiculo-carro" placeholder="Veículo (Modelo - Placa)" required>
+                            <input type="text" id="veiculo-motorista" placeholder="Nome do Condutor" required>
+                            <input type="text" id="veiculo-setor" placeholder="Setor" required>
+                            <input type="text" id="veiculo-contato" placeholder="Ramal / Contato">
+                            <input type="text" id="veiculo-destino" placeholder="Obs / Destino">
+                            <div><label style="font-size:0.8rem">KM Entrada</label><input type="number" id="veiculo-km-saida" placeholder="0"></div>
+                            <div><label style="font-size:0.8rem">Hora Entrada (Automático)</label><input type="datetime-local" id="veiculo-hora-saida" required></div>
+                            <div id="container-status-veiculo" style="display:none"><label style="font-size:0.8rem;color:var(--edit)">Status</label><select id="veiculo-status-edit"><option value="Aberto">Estacionado</option><option value="Fechado">Finalizado</option></select></div>
+                        </div>
+                        <div class="btn-container">
+                            <button type="submit" class="btn-primary" id="btn-submit-veiculo">Registrar Entrada</button>
+                            <button type="button" class="btn-cancel" id="btn-cancel-veiculo" onclick="cancelarEdicaoVeiculo()">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card">
+                    <div class="filter-container">
+                        <div class="filter-group"><label>Mês Ref:</label><input type="month" id="filtro-mes-frota" onchange="window.renderizarApenasFrota()"></div>
+                        <div class="filter-group"><label>Buscar:</label><input type="text" id="filtro-busca-frota" onkeyup="window.renderizarApenasFrota()" placeholder="Nome/Placa..."></div>
+                        <button id="btn-export-veiculos" class="btn-excel" onclick="exportarExcel('frota')"><i class="fas fa-file-excel"></i> Exportar</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="tabela-veiculos">
+                            <thead><tr><th>Status</th><th>Tipo</th><th>Condutor</th><th>Veículo</th><th>Setor</th><th>Entrada/Saída</th><th>Ações</th></tr></thead>
+                            <tbody><tr><td colspan="7" class="loading">Carregando...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="eventos" class="section">
+                <div class="page-header"><div class="page-header-left"><h2>Gestão de Eventos</h2><p>Registro e controle de eventos institucionais</p></div></div>
+                <div class="dashboard-panel">
+                    <div class="metric-card card-evt-total"><div class="metric-info"><h3>Total Eventos</h3><p id="dash-eventos-qtd">...</p></div><i class="fas fa-calendar metric-icon"></i></div>
+                    <div class="metric-card card-evt-interno"><div class="metric-info"><h3>Internos</h3><p id="dash-eventos-interno">...</p></div><i class="fas fa-building metric-icon"></i></div>
+                    <div class="metric-card card-evt-externo"><div class="metric-info"><h3>Externos</h3><p id="dash-eventos-externo">...</p></div><i class="fas fa-globe metric-icon"></i></div>
+                    <div class="metric-card card-evt-publico"><div class="metric-info"><h3>Público Total</h3><p id="dash-eventos-publico">...</p></div><i class="fas fa-users metric-icon"></i></div>
+                </div>
+                <div class="card">
+                    <h2 id="titulo-form-evento"><i class="fas fa-calendar-plus" style="color:var(--evento)"></i> Registrar Evento</h2>
+                    <form id="form-evento">
+                        <input type="hidden" id="evento-id-edit" value="">
+                        <div class="tipo-selector">
+                            <label class="radio-label"><input type="radio" name="tipoEvento" value="Interno" checked> <span style="color:var(--primary);font-weight:700;">Interno</span></label>
+                            <label class="radio-label"><input type="radio" name="tipoEvento" value="Externo"> <span style="color:var(--evento);font-weight:700;">Externo</span></label>
+                        </div>
+                        <div class="form-grid">
+                            <input type="text" id="evento-nome" placeholder="Nome do Evento / Reunião" required>
+                            <input type="text" id="evento-organizador" placeholder="Organizador / Responsável" required>
+                            <div><label style="font-size:0.8rem">Data do Evento</label><input type="date" id="evento-data" required></div>
+                            <div><label style="font-size:0.8rem">Público Estimado</label><input type="number" id="evento-publico" placeholder="Qtd. Pessoas" required></div>
+                            <input type="text" id="evento-local" placeholder="Local (Ex: Auditório, Sala 2)" required>
+                            <div class="checkbox-wrapper">
+                                <input type="checkbox" id="evento-coffee">
+                                <label for="evento-coffee"><i class="fas fa-coffee"></i> Servir Coffee Break?</label>
+                            </div>
+                            <textarea id="evento-obs" placeholder="Observações e Solicitações..." style="grid-column:1/-1;height:80px;resize:vertical;"></textarea>
+                        </div>
+                        <div class="btn-container">
+                            <button type="submit" class="btn-primary" id="btn-submit-evento" style="background:linear-gradient(135deg,var(--evento),#be185d);">Salvar Evento</button>
+                            <button type="button" class="btn-cancel" id="btn-cancel-evento" onclick="cancelarEdicaoEvento()">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card">
+                    <div class="filter-container">
+                        <div class="filter-group"><label>Filtrar Mês:</label><input type="month" id="filtro-mes-evento" onchange="window.renderizarApenasEventos()"></div>
+                        <div class="filter-group"><label>Buscar:</label><input type="text" id="filtro-busca-evento" onkeyup="window.renderizarApenasEventos()" placeholder="Nome do evento..."></div>
+                        <button id="btn-export-eventos" class="btn-excel" onclick="exportarExcel('eventos')"><i class="fas fa-file-excel"></i> Exportar</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="tabela-eventos">
+                            <thead><tr><th>Data</th><th>Tipo</th><th>Evento / Local / Obs</th><th>Organizador</th><th>Público</th><th>Ações</th></tr></thead>
+                            <tbody><tr><td colspan="6" class="loading">Carregando dados...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="crachas" class="section">
+                <div class="page-header"><div class="page-header-left"><h2 style="color:var(--cracha)"><i class="fas fa-id-card" style="margin-right:8px;"></i>Gestão de Crachás</h2><p>Solicitação, confecção e entrega de crachás</p></div></div>
+                <div class="dashboard-panel">
+                    <div class="metric-card card-cracha-solicitado"><div class="metric-info"><h3>Solicitados</h3><p id="dash-cracha-solicitado">...</p></div><i class="fas fa-id-card metric-icon"></i></div>
+                    <div class="metric-card card-cracha-pronto"><div class="metric-info"><h3>Confeccionados</h3><p id="dash-cracha-confeccionado">...</p></div><i class="fas fa-check metric-icon"></i></div>
+                    <div class="metric-card card-cracha-entregue"><div class="metric-info"><h3>Entregues</h3><p id="dash-cracha-entregue">...</p></div><i class="fas fa-user-check metric-icon"></i></div>
+                </div>
+                <div class="card" style="border-top:3px solid var(--cracha);">
+                    <h2 id="titulo-form-cracha"><i class="fas fa-id-card" style="color:var(--cracha)"></i> Novo Crachá</h2>
+                    <form id="form-cracha">
+                        <input type="hidden" id="cracha-id-edit" value="">
+                        <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));">
+                            <input type="text" id="cracha-nome" placeholder="Nome do Colaborador" required style="grid-column:span 2;">
+                            <input type="text" id="cracha-doc" placeholder="RG ou CPF" required>
+                            <input type="text" id="cracha-setor" placeholder="Setor (Ex: Financeiro)" required>
+                            <input type="text" id="cracha-cargo" placeholder="Cargo (Ex: Analista)" required>
+                            <input type="text" id="cracha-sala" placeholder="Sala (Ex: 65)" required>
+                            <input type="text" id="cracha-ramal" placeholder="Ramal">
+                            <select id="cracha-tipo"><option value="Definitivo">Crachá Definitivo</option><option value="Provisório">Crachá Provisório</option><option value="Cordão">Apenas Cordão/Presilha</option></select>
+                            <div><label style="font-size:0.8rem">Data Solicitação</label><input type="date" id="cracha-data" required></div>
+                            <select id="cracha-status"><option value="Solicitado">Solicitado (Pendente)</option><option value="Confeccionado">Confeccionado (Pronto)</option><option value="Entregue">Entregue ao Usuário</option></select>
+                        </div>
+                        <div class="btn-container">
+                            <button type="submit" class="btn-primary" id="btn-submit-cracha" style="background:linear-gradient(135deg,var(--cracha),#5b21b6);">Salvar Crachá</button>
+                            <button type="button" class="btn-cancel" id="btn-cancel-cracha" onclick="cancelarEdicaoCracha()">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card">
+                    <div class="filter-container">
+                        <div class="filter-group"><label>Buscar (Nome/Setor/RG):</label><input type="text" id="filtro-busca-cracha" onkeyup="window.renderizarApenasCrachas()" placeholder="Digite para buscar..."></div>
+                        <div class="filter-group"><label>Status:</label>
+                            <select id="filtro-status-cracha" onchange="window.renderizarApenasCrachas()">
+                                <option value="">Todos</option><option value="Solicitado">Solicitados</option><option value="Confeccionado">Prontos</option><option value="Entregue">Entregues</option>
+                            </select>
+                        </div>
+                        <button id="btn-export-crachas" class="btn-excel" onclick="exportarExcel('crachas')"><i class="fas fa-file-excel"></i> Exportar</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="tabela-crachas">
+                            <thead><tr><th>Data</th><th>Colaborador / Doc</th><th>Setor / Cargo</th><th>Localização</th><th>Status</th><th>Ações</th></tr></thead>
+                            <tbody><tr><td colspan="6" class="loading">Carregando...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="ocorrencias" class="section">
+                <div class="page-header">
+                    <div class="page-header-left">
+                        <h2 style="color:var(--ocorrencia)"><i class="fas fa-triangle-exclamation" style="margin-right:8px;"></i>Registro de Ocorrências</h2>
+                        <p>Controle de ocorrências e registros por contratada</p>
+                    </div>
+                </div>
+                <div class="dashboard-panel">
+                    <div class="metric-card card-oco-total"><div class="metric-info"><h3>Total</h3><p id="dash-oco-total">...</p></div><i class="fas fa-clipboard-list metric-icon"></i></div>
+                    <div class="metric-card card-oco-aberta"><div class="metric-info"><h3>Abertas</h3><p id="dash-oco-abertas">...</p></div><i class="fas fa-exclamation-circle metric-icon"></i></div>
+                    <div class="metric-card card-oco-tratativa"><div class="metric-info"><h3>Em Tratativa</h3><p id="dash-oco-tratativa">...</p></div><i class="fas fa-tools metric-icon"></i></div>
+                    <div class="metric-card card-oco-encerrada"><div class="metric-info"><h3>Encerradas</h3><p id="dash-oco-encerradas">...</p></div><i class="fas fa-check-circle metric-icon"></i></div>
+                </div>
+                <div class="card" style="border-top:3px solid var(--ocorrencia);">
+                    <h2 id="titulo-form-ocorrencia" style="color:var(--ocorrencia);"><i class="fas fa-triangle-exclamation" style="color:var(--ocorrencia)"></i> Registrar Ocorrência</h2>
+                    <form id="form-ocorrencia">
+                        <input type="hidden" id="ocorrencia-id-edit" value="">
+                        <div class="form-grid">
+                            <input type="text" id="oco-numero" placeholder="Nº do Registro (Ex: 001/2026)">
+                            <input type="text" id="oco-unidade" placeholder="Unidade / Prédio (Ex: SEDE)" required>
+                            <input type="text" id="oco-local" placeholder="Local / Setor" required>
+                            <input type="text" id="oco-contratada" placeholder="Contratada (Opcional)">
+                            <select id="oco-categoria">
+                                <option value="Segurança">Segurança</option>
+                                <option value="Manutenção">Manutenção</option>
+                                <option value="Limpeza">Limpeza</option>
+                                <option value="Ar Condicionado">Ar Condicionado</option>
+                                <option value="Recepção">Recepção</option>
+                                <option value="Copa Gabinete">Copa Gabinete</option>
+                                <option value="Purificador de Água">Purificador de Água</option>
+                                <option value="Bombeiro">Bombeiro</option>
+                                <option value="Dedetização">Dedetização</option>
+                                <option value="Outros">Outros</option>
+                            </select>
+                            <select id="oco-gravidade">
+                                <option value="Baixa">Baixa</option>
+                                <option value="Média">Média</option>
+                                <option value="Alta">Alta</option>
+                                <option value="Crítica">Crítica</option>
+                            </select>
+                            <div><label style="font-size:0.8rem">Data / Hora</label><input type="datetime-local" id="oco-data" required></div>
+                            <input type="text" id="oco-responsavel" placeholder="Responsável pelo Registro" required>
+                            <textarea id="oco-descricao" rows="3" placeholder="Descreva a ocorrência com detalhes..." required style="grid-column:1/-1; height:80px; resize:vertical;"></textarea>
+                            <select id="oco-status-edit" style="display:none">
+                                <option value="Aberta">Aberta</option>
+                                <option value="Em Tratativa">Em Tratativa</option>
+                                <option value="Encerrada">Encerrada</option>
+                            </select>
+                        </div>
+                        <div class="btn-container">
+                            <button type="submit" class="btn-primary" id="btn-submit-oco" style="background:linear-gradient(135deg,var(--ocorrencia),#991b1b);">
+                                <i class="fas fa-exclamation-triangle"></i> Registrar Ocorrência
+                            </button>
+                            <button type="button" class="btn-cancel" id="btn-cancel-oco" onclick="cancelarEdicaoOcorrencia()">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="card">
+                    <div class="filter-container">
+                        <div class="filter-group"><label>Mês Ref:</label><input type="month" id="filtro-mes-oco" onchange="window.renderizarApenasOcorrencias()"></div>
+                        <div class="filter-group"><label>Buscar:</label><input type="text" id="filtro-busca-oco" onkeyup="window.renderizarApenasOcorrencias()" placeholder="Local, descrição..."></div>
+                        <div class="filter-group"><label>Status:</label>
+                            <select id="filtro-status-oco" onchange="window.renderizarApenasOcorrencias()">
+                                <option value="">Todos</option>
+                                <option value="Aberta">Aberta</option>
+                                <option value="Em Tratativa">Em Tratativa</option>
+                                <option value="Encerrada">Encerrada</option>
+                            </select>
+                        </div>
+                        <button class="btn-excel" onclick="exportarExcel('ocorrencias')"><i class="fas fa-file-excel"></i> Exportar</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="tabela-ocorrencias">
+                            <thead><tr><th>Data/Hora</th><th>Gravidade</th><th>Categoria / Local</th><th>Descrição</th><th>Status</th><th>Tempo</th><th>Ações</th></tr></thead>
+                            <tbody><tr><td colspan="7" class="loading">Carregando...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="auditoria" class="section">
+                <div class="page-header"><div class="page-header-left"><h2>Logs de Auditoria</h2><p>Histórico das últimas ações no sistema</p></div></div>
+                <div class="card">
+                    <div class="table-container">
+                        <table id="tabela-logs">
+                            <thead><tr><th>Data/Hora</th><th>Usuário</th><th>Seção</th><th>Ação</th><th>Detalhes</th></tr></thead>
+                            <tbody><tr><td colspan="5" class="loading">Carregando histórico...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="usuarios" class="section">
+                <div class="page-header"><div class="page-header-left"><h2>Gestão de Usuários</h2><p>Criação e permissões de acesso ao sistema</p></div></div>
+                <div class="card">
+                    <h2 id="titulo-user-form"><i class="fas fa-user-shield"></i> Criar Novo Usuário</h2>
+                    <div class="form-grid" style="background:#f8fafc;padding:1.25rem;border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:1.25rem;">
+                        <input type="hidden" id="edit-user-id">
+                        <input type="text" id="novo-user-email" placeholder="E-mail do usuário" required>
+                        <input type="password" id="novo-user-pass" placeholder="Senha" required>
+                        <input type="text" id="novo-user-nome" placeholder="Nome de Exibição (Ex: Zeladoria)" required>
+                        <select id="novo-user-role" style="display:none"><option value="custom">Personalizado</option></select>
+                        <div class="checkbox-wrapper" style="grid-column:1/-1;background:#f0fdf4;border-color:var(--success);">
+                            <input type="checkbox" id="novo-user-admin" onchange="togglePermissoes(this)">
+                            <label for="novo-user-admin" style="color:#065f46;"><i class="fas fa-crown"></i> É Administrador Geral? (Acesso Total)</label>
+                        </div>
+                        <div id="container-permissoes" style="grid-column:1/-1;margin-top:10px;">
+                            <h4 style="margin-bottom:10px;color:var(--text-secondary);font-size:0.875rem;">Permissões Específicas:</h4>
+                            <div class="table-container">
+                                <table class="perm-table">
+                                    <thead><tr><th>Módulo</th><th>Visualizar</th><th>Editar</th><th>Excluir</th><th>Exportar</th></tr></thead>
+                                    <tbody>
+                                        <tr><td>Demandas (Geral)</td><td><input type="checkbox" id="perm-demandas-ver" checked></td><td><input type="checkbox" id="perm-demandas-edit"></td><td><input type="checkbox" id="perm-demandas-del"></td><td><input type="checkbox" id="perm-demandas-exp"></td></tr>
+                                        <tr><td style="color:var(--predial)">Predial</td><td><input type="checkbox" id="perm-predial-ver"></td><td><input type="checkbox" id="perm-predial-edit"></td><td><input type="checkbox" id="perm-predial-del"></td><td><input type="checkbox" id="perm-predial-exp"></td></tr>
+                                        <tr><td style="color:var(--limpeza)">Limpeza</td><td><input type="checkbox" id="perm-limpeza-ver"></td><td><input type="checkbox" id="perm-limpeza-edit"></td><td><input type="checkbox" id="perm-limpeza-del"></td><td><input type="checkbox" id="perm-limpeza-exp"></td></tr>
+                                        <tr><td style="color:var(--ar)">Ar Condicionado</td><td><input type="checkbox" id="perm-ar-ver"></td><td><input type="checkbox" id="perm-ar-edit"></td><td><input type="checkbox" id="perm-ar-del"></td><td><input type="checkbox" id="perm-ar-exp"></td></tr>
+                                        <tr><td>Visitantes</td><td><input type="checkbox" id="perm-visitantes-ver"></td><td><input type="checkbox" id="perm-visitantes-edit"></td><td><input type="checkbox" id="perm-visitantes-del"></td><td><input type="checkbox" id="perm-visitantes-exp"></td></tr>
+                                        <tr><td>Frota / Veículos</td><td><input type="checkbox" id="perm-veiculos-ver"></td><td><input type="checkbox" id="perm-veiculos-edit"></td><td><input type="checkbox" id="perm-veiculos-del"></td><td><input type="checkbox" id="perm-veiculos-exp"></td></tr>
+                                        <tr><td>Eventos</td><td><input type="checkbox" id="perm-eventos-ver"></td><td><input type="checkbox" id="perm-eventos-edit"></td><td><input type="checkbox" id="perm-eventos-del"></td><td><input type="checkbox" id="perm-eventos-exp"></td></tr>
+                                        <tr><td style="color:var(--cracha)">Crachás</td><td><input type="checkbox" id="perm-crachas-ver"></td><td><input type="checkbox" id="perm-crachas-edit"></td><td><input type="checkbox" id="perm-crachas-del"></td><td><input type="checkbox" id="perm-crachas-exp"></td></tr>
+                                        <tr><td style="color:var(--ocorrencia)">Ocorrências</td><td><input type="checkbox" id="perm-ocorrencias-ver"></td><td><input type="checkbox" id="perm-ocorrencias-edit"></td><td><input type="checkbox" id="perm-ocorrencias-del"></td><td><input type="checkbox" id="perm-ocorrencias-exp"></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="btn-container" style="grid-column:1/-1;">
+                            <button onclick="salvarUsuario()" class="btn-primary" id="btn-save-user">Criar Usuário</button>
+                            <button onclick="cancelarEdicaoUsuario()" class="btn-cancel" id="btn-cancel-user" style="display:none">Cancelar</button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table id="tabela-usuarios-app">
+                            <thead><tr><th>Nome</th><th>E-mail</th><th>Tipo</th><th>Último Login</th><th>Ação</th></tr></thead>
+                            <tbody><tr><td colspan="5" class="loading">Carregando usuários...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- ============================================================
+         SCRIPTS — carregados na ordem correta de dependência
+         ============================================================ -->
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/sync.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/realtime.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/demandas.js"></script>
+    <script src="js/visitantes.js"></script>
+    <script src="js/frota.js"></script>
+    <script src="js/eventos.js"></script>
+    <script src="js/crachas.js"></script>
+    <script src="js/ocorrencias.js"></script>
+    <script src="js/usuarios.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
