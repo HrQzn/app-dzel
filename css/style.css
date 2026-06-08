@@ -350,6 +350,62 @@
         @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
         .loading { text-align: center; padding: 2.5rem; font-style: italic; color: var(--text-muted); font-size: 0.9rem; }
 
+        /* ======== SKELETON LOADERS (feedback de carregamento) ======== */
+        .skeleton-row td { padding: 0.9rem 1rem; }
+        .skeleton-row:hover td { background: transparent; }
+        .skeleton-bar {
+            height: 14px; border-radius: 6px; width: 100%;
+            background: linear-gradient(90deg, #eef2f7 25%, #dfe6ef 37%, #eef2f7 63%);
+            background-size: 400% 100%;
+            animation: skeleton-shimmer 1.4s ease infinite;
+        }
+        @keyframes skeleton-shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+
+        /* ======== ESTADO VAZIO ======== */
+        .tabela-vazia {
+            text-align: center; color: var(--text-muted);
+            padding: 2.75rem 1rem !important; font-size: 0.9rem; font-weight: 500;
+        }
+
+        /* ======== PAGINAÇÃO ======== */
+        .pagination {
+            display: flex; align-items: center; justify-content: space-between;
+            flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem; padding-top: 0.25rem;
+        }
+        .pagination:empty { display: none; }
+        .pagination-info { font-size: 0.8rem; color: var(--text-muted); }
+        .pagination-info strong { color: var(--text-secondary); font-weight: 700; }
+        .pagination-controls { display: flex; align-items: center; gap: 5px; }
+        .pagination-page {
+            font-size: 0.82rem; font-weight: 700; color: var(--text-secondary);
+            padding: 0 0.6rem; font-family: 'JetBrains Mono', monospace;
+            min-width: 60px; text-align: center;
+        }
+        .pg-btn {
+            width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center;
+            border: 1px solid var(--border); background: var(--bg-card); color: var(--text-secondary);
+            border-radius: var(--radius-sm); cursor: pointer; font-size: 0.8rem;
+            transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s;
+            -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+        }
+        .pg-btn:hover:not(:disabled) { background: var(--accent); color: #fff; border-color: var(--accent); transform: translateY(-1px); box-shadow: 0 4px 10px var(--accent-glow); }
+        .pg-btn:active:not(:disabled) { transform: translateY(0); }
+        .pg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* ======== POLIMENTO VISUAL & ACESSIBILIDADE ======== */
+        html { scroll-behavior: smooth; }
+        a:focus-visible, button:focus-visible, input:focus-visible,
+        select:focus-visible, textarea:focus-visible, .tab-btn:focus-visible {
+            outline: 2px solid var(--accent-light); outline-offset: 2px;
+        }
+        td { transition: background-color 0.12s ease; }
+        .action-btn:active { transform: translateY(0) scale(0.96); }
+        .badge { transition: filter 0.15s ease; }
+        /* Respeita preferência de movimento reduzido */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+        }
+
         /* ======== MOBILE MENU BUTTON ======== */
         #mobile-menu-btn { display: none; background: none; border: none; font-size: 1.4rem; color: var(--text-primary); cursor: pointer; padding: 8px; border-radius: 8px; -webkit-tap-highlight-color: transparent; transition: background 0.2s; }
         #mobile-menu-btn:active { background: rgba(0,0,0,0.06); }
@@ -481,6 +537,12 @@
             table { min-width: 600px; }
             td, th { padding: 0.75rem 0.75rem; font-size: 0.82rem; }
             .action-btn { padding: 7px 9px; font-size: 0.75rem; min-height: 36px; /* tap target */ }
+
+            /* Paginação — centraliza e dá área de toque maior */
+            .pagination { justify-content: center; }
+            .pagination-info { width: 100%; text-align: center; order: 2; }
+            .pagination-controls { order: 1; }
+            .pg-btn { width: 38px; height: 38px; }
 
             /* Cards */
             .card { padding: 1.25rem; border-radius: var(--radius-md); }

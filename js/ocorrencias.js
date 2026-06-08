@@ -2,50 +2,61 @@
 // DZEL — MÓDULO: OCORRÊNCIAS
 // ================================================================
 
+const _ocoGravClass = { 'Baixa':'bg-concluido','Média':'bg-andamento','Alta':'bg-pendente','Crítica':'bg-critica' };
+const _ocoStatClass = { 'Aberta':'bg-aberta','Em Tratativa':'bg-tratativa','Encerrada':'bg-encerrada' };
+
+function criarLinhaOcorrencia(o) {
+    const dataFmt = formatarDataHoraReal(o.data_hora);
+    const tempo   = o.status === 'Encerrada' && o.data_encerramento
+        ? `<span class="time-badge"><i class="fas fa-flag-checkered"></i> ${calcularTempoOco(o.data_hora, o.data_encerramento)}</span>`
+        : `<span class="time-badge" style="background:#fef3c7;color:#92400e;border-color:#fde68a"><i class="fas fa-hourglass-half"></i> ${calcularTempoOco(o.data_hora)}</span>`;
+    const titulo  = o.numero ? `<strong>#${o.numero} — ${o.categoria}</strong>` : `<strong>${o.categoria}</strong>`;
+    const desc    = (o.descricao || '').substring(0, 55) + ((o.descricao || '').length > 55 ? '…' : '');
+    const btnWA   = `<button onclick="enviarWhatsAppOcorrencia(${o.id})" class="action-btn btn-whatsapp" title="WhatsApp"><i class="fab fa-whatsapp"></i></button>`;
+    const btnPDF  = `<button onclick="gerarPDFOcorrencia(${o.id})" class="action-btn btn-print" title="Gerar PDF"><i class="fas fa-file-pdf"></i></button>`;
+    const btnEdit = pode('ocorrencias','editar')  ? `<button onclick="editarOcorrencia(${o.id})" class="action-btn btn-edit"><i class="fas fa-pen"></i></button>` : '';
+    const btnDel  = pode('ocorrencias','excluir') ? `<button onclick="deletarOcorrencia(${o.id})" class="action-btn btn-delete"><i class="fas fa-trash"></i></button>` : '';
+    return `<tr>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;white-space:nowrap">${dataFmt}</td>
+        <td><span class="badge ${_ocoGravClass[o.gravidade] || 'bg-saiu'}">${o.gravidade}</span></td>
+        <td>${titulo}<br><small style="color:var(--text-muted)">${o.unidade} — ${o.local}</small></td>
+        <td>${desc}<br><small style="color:var(--text-muted)">Resp: ${o.responsavel}</small></td>
+        <td><span class="badge ${_ocoStatClass[o.status] || 'bg-saiu'}">${o.status}</span></td>
+        <td>${tempo}</td>
+        <td style="min-width:150px">${btnWA}${btnPDF}${btnEdit}${btnDel}</td>
+    </tr>`;
+}
+
 window.renderizarApenasOcorrencias = function() {
     const mes   = document.getElementById('filtro-mes-oco').value;
     const termo = document.getElementById('filtro-busca-oco').value.toUpperCase();
     const stat  = document.getElementById('filtro-status-oco').value;
+    let abertas = 0, tratativa = 0, encerradas = 0;
     const lista = ocorrencias.filter(o => {
         const bM = !mes   || (o.data_hora || '').startsWith(mes);
         const bS = !stat  || o.status === stat;
         const bT = !termo || (o.unidade + o.local + o.categoria + o.descricao + o.responsavel + (o.numero || '')).toUpperCase().includes(termo);
         return bM && bS && bT;
     });
-    document.getElementById('dash-oco-total').innerText      = lista.length;
-    document.getElementById('dash-oco-abertas').innerText    = lista.filter(o => o.status === 'Aberta').length;
-    document.getElementById('dash-oco-tratativa').innerText  = lista.filter(o => o.status === 'Em Tratativa').length;
-    document.getElementById('dash-oco-encerradas').innerText = lista.filter(o => o.status === 'Encerrada').length;
-
-    const tbody = document.querySelector('#tabela-ocorrencias tbody');
-    if (!lista.length) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem;">Nenhuma ocorrência encontrada.</td></tr>';
-        return;
+    for (const o of lista) {
+        if (o.status === 'Aberta')            abertas++;
+        else if (o.status === 'Em Tratativa') tratativa++;
+        else if (o.status === 'Encerrada')    encerradas++;
     }
-    const gravClass = { 'Baixa':'bg-concluido','Média':'bg-andamento','Alta':'bg-pendente','Crítica':'bg-critica' };
-    const statClass = { 'Aberta':'bg-aberta','Em Tratativa':'bg-tratativa','Encerrada':'bg-encerrada' };
+    document.getElementById('dash-oco-total').innerText      = lista.length;
+    document.getElementById('dash-oco-abertas').innerText    = abertas;
+    document.getElementById('dash-oco-tratativa').innerText  = tratativa;
+    document.getElementById('dash-oco-encerradas').innerText = encerradas;
 
-    tbody.innerHTML = lista.map(o => {
-        const dataFmt = formatarDataHoraReal(o.data_hora);
-        const tempo   = o.status === 'Encerrada' && o.data_encerramento
-            ? `<span class="time-badge"><i class="fas fa-flag-checkered"></i> ${calcularTempoOco(o.data_hora, o.data_encerramento)}</span>`
-            : `<span class="time-badge" style="background:#fef3c7;color:#92400e;border-color:#fde68a"><i class="fas fa-hourglass-half"></i> ${calcularTempoOco(o.data_hora)}</span>`;
-        const titulo  = o.numero ? `<strong>#${o.numero} — ${o.categoria}</strong>` : `<strong>${o.categoria}</strong>`;
-        const desc    = (o.descricao || '').substring(0, 55) + ((o.descricao || '').length > 55 ? '…' : '');
-        const btnWA   = `<button onclick="enviarWhatsAppOcorrencia(${o.id})" class="action-btn btn-whatsapp" title="WhatsApp"><i class="fab fa-whatsapp"></i></button>`;
-        const btnPDF  = `<button onclick="gerarPDFOcorrencia(${o.id})" class="action-btn btn-print" title="Gerar PDF"><i class="fas fa-file-pdf"></i></button>`;
-        const btnEdit = pode('ocorrencias','editar')  ? `<button onclick="editarOcorrencia(${o.id})" class="action-btn btn-edit"><i class="fas fa-pen"></i></button>` : '';
-        const btnDel  = pode('ocorrencias','excluir') ? `<button onclick="deletarOcorrencia(${o.id})" class="action-btn btn-delete"><i class="fas fa-trash"></i></button>` : '';
-        return `<tr>
-            <td style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;white-space:nowrap">${dataFmt}</td>
-            <td><span class="badge ${gravClass[o.gravidade] || 'bg-saiu'}">${o.gravidade}</span></td>
-            <td>${titulo}<br><small style="color:var(--text-muted)">${o.unidade} — ${o.local}</small></td>
-            <td>${desc}<br><small style="color:var(--text-muted)">Resp: ${o.responsavel}</small></td>
-            <td><span class="badge ${statClass[o.status] || 'bg-saiu'}">${o.status}</span></td>
-            <td>${tempo}</td>
-            <td style="min-width:150px">${btnWA}${btnPDF}${btnEdit}${btnDel}</td>
-        </tr>`;
-    }).join('');
+    renderPaginated({
+        tableId: 'tabela-ocorrencias',
+        items:   lista,
+        rowFn:   criarLinhaOcorrencia,
+        colspan: 7,
+        emptyMsg: 'Nenhuma ocorrência encontrada.',
+        filterKey: mes + '|' + termo + '|' + stat,
+        rerender: window.renderizarApenasOcorrencias
+    });
 };
 
 // ── CRUD ─────────────────────────────────────────────────────────
@@ -80,7 +91,7 @@ document.getElementById('form-ocorrencia').addEventListener('submit', async (e) 
     }
     const { error } = await sb.from('ocorrencias').upsert(novaOco);
     if (error) alert('Erro: ' + error.message);
-    else { syncSheets('ocorrencias', 'upsert', novaOco); cancelarEdicaoOcorrencia(); carregarDados(); }
+    else { syncSheets('ocorrencias', 'upsert', novaOco); cancelarEdicaoOcorrencia(); carregarDados(['ocorrencias']); }
 });
 
 window.editarOcorrencia = function(id) {
@@ -127,7 +138,7 @@ window.deletarOcorrencia = async function(id) {
     await sb.from('ocorrencias').delete().eq('id', id);
     syncSheets('ocorrencias', 'delete', { id });
     registrarLog('Exclusão', 'Ocorrências', `Removeu ocorrência: ${item ? (item.numero || item.categoria) : id}`);
-    carregarDados();
+    carregarDados(['ocorrencias']);
 };
 
 // ── WhatsApp ─────────────────────────────────────────────────────
@@ -149,6 +160,8 @@ window.enviarWhatsAppOcorrencia = function(id) {
 // ================================================================
 window.gerarPDFOcorrencia = async function(id) {
     const o = ocorrencias.find(i => i.id == id); if (!o) return;
+    try { await ensureJsPDF(); }   // carrega jsPDF sob demanda
+    catch (e) { alert('Não foi possível carregar o gerador de PDF. Verifique a conexão e tente novamente.'); return; }
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 

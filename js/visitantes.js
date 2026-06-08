@@ -61,9 +61,32 @@ document.getElementById('vis-foto-input').addEventListener('change', function(e)
 // ── Renderização ─────────────────────────────────────────────────
 const _defaultAvatar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23eee'/%3E%3Cpath fill='%23ccc' d='M50 50c-13.8 0-25-11.2-25-25s11.2-25 25-25 25 11.2 25 25-11.2 25-25 25zm0 10c16.7 0 50 8.3 50 25v15H0v-15c0-16.7 33.3-25 50-25z'/%3E%3C/svg%3E";
 
+function criarLinhaVisitante(v) {
+    const badge    = v.status === 'Ativo'
+        ? '<span class="badge bg-visitante-ativo">NA EMPRESA</span>'
+        : '<span class="badge bg-saiu">SAIU</span>';
+    const dataEnt  = formatarDataHoraReal(v.entrada);
+    const dataSai  = v.saida ? formatarDataHoraReal(v.saida) : '-';
+    const btnBaixa = (v.status === 'Ativo' && pode('visitantes', 'editar'))
+        ? `<button onclick="baixaVisitante(${v.id})" class="action-btn btn-baixa"><i class="fas fa-sign-out-alt"></i> Saída</button>`
+        : '<i class="fas fa-check" style="color:var(--success);"></i>';
+    let buttons = '';
+    if (pode('visitantes', 'editar'))  buttons += `<button onclick="editarVisitante(${v.id})" class="action-btn btn-edit"><i class="fas fa-pen"></i></button>`;
+    if (pode('visitantes', 'excluir')) buttons += `<button onclick="deletarVisitante(${v.id})" class="action-btn btn-delete"><i class="fas fa-trash"></i></button>`;
+    return `<tr>
+        <td>${badge}</td>
+        <td><img src="${v.foto || _defaultAvatar}" class="avatar-table" loading="lazy"><strong>${v.nome}</strong><br><small style="color:var(--text-muted)">${v.contato || ''}</small></td>
+        <td>${v.empresa || '-'}<br><small style="color:var(--text-muted)">${v.doc}</small></td>
+        <td>${v.responsavel}<br><small style="color:var(--text-muted)">${v.finalidade}</small></td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;">Ent: ${dataEnt}<br>Sai: ${dataSai}</td>
+        <td style="min-width:140px">${btnBaixa}${buttons}</td>
+    </tr>`;
+}
+
 window.renderizarApenasVisitantes = function() {
     const mes   = document.getElementById('filtro-mes-vis').value;
     const termo = document.getElementById('filtro-busca-vis').value.toUpperCase();
+    let ativos = 0;
     const lista = visitantes.filter(v => {
         const bateMes   = !mes   || v.entrada.startsWith(mes);
         const bateTermo = !termo || v.nome.toUpperCase().includes(termo)
@@ -71,40 +94,23 @@ window.renderizarApenasVisitantes = function() {
             || v.empresa.toUpperCase().includes(termo);
         return bateMes && bateTermo;
     });
+    for (const v of lista) if (v.status === 'Ativo') ativos++;
 
-    document.getElementById('dash-visitantes-ativos').innerText = lista.filter(v => v.status === 'Ativo').length;
+    document.getElementById('dash-visitantes-ativos').innerText = ativos;
     document.getElementById('dash-visitantes-total').innerText  = lista.length;
 
     const btnExport = document.getElementById('btn-export-visitantes');
     btnExport.style.display = pode('visitantes', 'exportar') ? 'inline-flex' : 'none';
 
-    const tbody = document.querySelector('#tabela-visitantes tbody');
-    if (lista.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem;">Nenhum visitante encontrado.</td></tr>';
-        return;
-    }
-    tbody.innerHTML = lista.map(v => {
-        const badge    = v.status === 'Ativo'
-            ? '<span class="badge bg-visitante-ativo">NA EMPRESA</span>'
-            : '<span class="badge bg-saiu">SAIU</span>';
-        const dataEnt  = formatarDataHoraReal(v.entrada);
-        const dataSai  = v.saida ? formatarDataHoraReal(v.saida) : '-';
-        const btnBaixa = (v.status === 'Ativo' && pode('visitantes', 'editar'))
-            ? `<button onclick="baixaVisitante(${v.id})" class="action-btn btn-baixa"><i class="fas fa-sign-out-alt"></i> Saída</button>`
-            : '<i class="fas fa-check" style="color:var(--success);"></i>';
-        let buttons = '';
-        if (pode('visitantes', 'editar'))  buttons += `<button onclick="editarVisitante(${v.id})" class="action-btn btn-edit"><i class="fas fa-pen"></i></button>`;
-        if (pode('visitantes', 'excluir')) buttons += `<button onclick="deletarVisitante(${v.id})" class="action-btn btn-delete"><i class="fas fa-trash"></i></button>`;
-        const avatarSrc = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23eee'/%3E%3Cpath fill='%23ccc' d='M50 50c-13.8 0-25-11.2-25-25s11.2-25 25-25 25 11.2 25 25-11.2 25-25 25zm0 10c16.7 0 50 8.3 50 25v15H0v-15c0-16.7 33.3-25 50-25z'/%3E%3C/svg%3E";
-        return `<tr>
-            <td>${badge}</td>
-            <td><img src="${v.foto || avatarSrc}" class="avatar-table"><strong>${v.nome}</strong><br><small style="color:var(--text-muted)">${v.contato || ''}</small></td>
-            <td>${v.empresa || '-'}<br><small style="color:var(--text-muted)">${v.doc}</small></td>
-            <td>${v.responsavel}<br><small style="color:var(--text-muted)">${v.finalidade}</small></td>
-            <td style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;">Ent: ${dataEnt}<br>Sai: ${dataSai}</td>
-            <td style="min-width:140px">${btnBaixa}${buttons}</td>
-        </tr>`;
-    }).join('');
+    renderPaginated({
+        tableId: 'tabela-visitantes',
+        items:   lista,
+        rowFn:   criarLinhaVisitante,
+        colspan: 6,
+        emptyMsg: 'Nenhum visitante encontrado.',
+        filterKey: mes + '|' + termo,
+        rerender: window.renderizarApenasVisitantes
+    });
 };
 
 // ── CRUD ─────────────────────────────────────────────────────────
@@ -140,7 +146,7 @@ document.getElementById('form-visitante').addEventListener('submit', async (e) =
     }
     const { error } = await sb.from('visitantes').upsert(novoVisitante);
     if (error) alert('Erro: ' + error.message);
-    else { syncSheets('visitantes', 'upsert', novoVisitante); cancelarEdicaoVisitante(); carregarDados(); }
+    else { syncSheets('visitantes', 'upsert', novoVisitante); cancelarEdicaoVisitante(); carregarDados(['visitantes']); }
 });
 
 window.editarVisitante = function(id) {
@@ -190,7 +196,7 @@ window.deletarVisitante = async function(id) {
     syncSheets('visitantes', 'delete', { id });
     registrarLog('Exclusão', 'Visitantes', `Removeu visitante: ${item ? item.nome : id}`);
     if (document.getElementById('visitante-id-edit').value == id) cancelarEdicaoVisitante();
-    carregarDados();
+    carregarDados(['visitantes']);
 };
 
 window.baixaVisitante = async function(id) {
@@ -199,5 +205,5 @@ window.baixaVisitante = async function(id) {
     await sb.from('visitantes').update(upd).eq('id', id);
     const item = visitantes.find(v => v.id == id);
     syncSheets('visitantes', 'upsert', { ...item, ...upd });
-    carregarDados();
+    carregarDados(['visitantes']);
 };

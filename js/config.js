@@ -31,7 +31,6 @@ let currentUserData = null;
 let streamGeral     = null;  // stream da webcam
 let osPrintAtualId  = null;  // id da OS aberta no modal de impressão
 
-// Instâncias dos charts (Chart.js)
-Chart.register(ChartDataLabels);
+// Instâncias dos charts (Chart.js) — registrado sob demanda em ensureCharts()
 let chartVolume  = null;
 let chartGaragem = null;

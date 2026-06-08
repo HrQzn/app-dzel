@@ -59,7 +59,7 @@ window.switchTab = function(tabId) {
 };
 
 // ── Exportação para Excel (SheetJS) ─────────────────────────────
-function exportarExcel(tipo) {
+async function exportarExcel(tipo) {
     if (!pode(tipo, 'exportar')) { alert('Você não tem permissão para exportar estes dados.'); return; }
     let data = [], nomeArquivo = "";
     if      (tipo === 'demandas')    { data = demandas;    nomeArquivo = "Relatorio_Demandas_Geral.xlsx"; }
@@ -73,6 +73,9 @@ function exportarExcel(tipo) {
     else if (tipo === 'ocorrencias') { data = ocorrencias; nomeArquivo = "Relatorio_Ocorrencias.xlsx"; }
 
     if (data.length === 0) return alert("Não há dados para exportar.");
+
+    try { await ensureXLSX(); }   // carrega SheetJS sob demanda
+    catch (e) { alert('Não foi possível carregar o módulo de exportação. Verifique a conexão e tente novamente.'); return; }
 
     if (['demandas','predial','ar','limpeza'].includes(tipo)) {
         data = data.map(d => ({
@@ -99,6 +102,26 @@ document.getElementById('cracha-data').value             = DateUtils.getToInput(
 document.getElementById('vis-entrada').value             = DateUtils.getToInput();
 document.getElementById('veiculo-hora-saida').value      = DateUtils.getToInput();
 document.getElementById('oco-data').value                = DateUtils.getToInput();
+
+// ── Debounce dos campos de busca (evita re-render a cada tecla) ──
+(function configurarBuscaDebounce() {
+    const buscas = {
+        'filtro-busca-predial': () => window.renderizarAbasEspecificas(),
+        'filtro-busca-ar':      () => window.renderizarAbasEspecificas(),
+        'filtro-busca-limpeza': () => window.renderizarAbasEspecificas(),
+        'filtro-busca-vis':     () => window.renderizarApenasVisitantes(),
+        'filtro-busca-frota':   () => window.renderizarApenasFrota(),
+        'filtro-busca-evento':  () => window.renderizarApenasEventos(),
+        'filtro-busca-cracha':  () => window.renderizarApenasCrachas(),
+        'filtro-busca-oco':     () => window.renderizarApenasOcorrencias()
+    };
+    Object.entries(buscas).forEach(([id, fn]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        let t = null;
+        el.addEventListener('input', () => { clearTimeout(t); t = setTimeout(fn, 250); });
+    });
+})();
 
 // ── Bootstrap ────────────────────────────────────────────────────
 verificarSessao();

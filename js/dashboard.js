@@ -18,7 +18,7 @@ async function renderizarDashboard() {
 
     let counts = { 'AR': 0, 'PREDIAL': 0, 'LIMPEZA': 0, 'RAMAL': 0, 'OUTROS': 0 };
     listaDemandas.forEach(d => {
-        const cat = getCategoriaDemanda(d);
+        const cat = d._categoria || getCategoriaDemanda(d);
         if (counts[cat] !== undefined) counts[cat]++; else counts['OUTROS']++;
     });
 
@@ -36,6 +36,12 @@ async function renderizarDashboard() {
     const divisor    = filtroMes ? 30 : 365;
     const fluxoDiario = Math.ceil(totalFrota / (totalFrota > 0 ? divisor : 1));
     document.getElementById('kpi-fluxo-garagem').innerHTML = fluxoDiario + ' <small>Veíc/Dia</small>';
+
+    // ── Gráficos (Chart.js carregado sob demanda) ────────────────
+    // KPIs acima já foram pintados; só os gráficos aguardam a lib.
+    // Se o CDN falhar, degrada graciosamente (mantém os KPIs).
+    try { await ensureCharts(); }
+    catch (e) { console.warn('Gráficos indisponíveis no momento:', e.message); return; }
 
     // ── Gráfico: Volume por Setor ────────────────────────────────
     const ctxVolume = document.getElementById('chartVolumeSetor').getContext('2d');
@@ -132,15 +138,16 @@ async function renderizarDashboard() {
 
 // ── Impressão do Dashboard ───────────────────────────────────────
 window.imprimirDashboard = function() {
+    const resizeCharts = () => { if (window.Chart && Chart.instances) Object.values(Chart.instances).forEach(c => c.resize()); };
     document.body.classList.add('printing-dashboard');
     setTimeout(function() { window.print(); }, 500);
     window.onafterprint = function() {
         document.body.classList.remove('printing-dashboard');
-        Object.values(Chart.instances).forEach(chart => chart.resize());
+        resizeCharts();
     };
     setTimeout(function() {
         document.body.classList.remove('printing-dashboard');
-        Object.values(Chart.instances).forEach(chart => chart.resize());
+        resizeCharts();
     }, 5000);
 };
 
