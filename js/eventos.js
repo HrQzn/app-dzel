@@ -2,43 +2,54 @@
 // DZEL — MÓDULO: EVENTOS
 // ================================================================
 
+function criarLinhaEvento(ev) {
+    const badgeClass  = ev.tipo === 'Interno' ? 'bg-interno' : 'bg-externo';
+    const iconCoffee  = ev.coffee ? '<i class="fas fa-coffee" style="color:#92400e;margin-left:6px;" title="Coffee Break"></i>' : '';
+    const obsText     = ev.obs ? `<div style="font-size:0.75rem;color:var(--text-muted);font-style:italic;margin-top:3px;border-top:1px dashed var(--border);padding-top:3px">${ev.obs}</div>` : '';
+    let buttons = '';
+    if (pode('eventos', 'editar'))  buttons += `<button onclick="editarEvento(${ev.id})" class="action-btn btn-edit"><i class="fas fa-pen"></i></button>`;
+    if (pode('eventos', 'excluir')) buttons += `<button onclick="deletarEvento(${ev.id})" class="action-btn btn-delete"><i class="fas fa-trash"></i></button>`;
+    return `<tr>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:0.82rem;"><strong>${formatarData(ev.data)}</strong></td>
+        <td><span class="badge ${badgeClass}">${ev.tipo}</span></td>
+        <td><strong>${ev.nome}</strong>${iconCoffee}<br><small style="color:var(--text-muted)">${ev.local}</small>${obsText}</td>
+        <td>${ev.organizador}</td>
+        <td><strong style="font-family:'JetBrains Mono',monospace;">${ev.publico}</strong></td>
+        <td style="min-width:100px">${buttons}</td>
+    </tr>`;
+}
+
 window.renderizarApenasEventos = function() {
     const mes   = document.getElementById('filtro-mes-evento').value;
     const busca = document.getElementById('filtro-busca-evento').value.toUpperCase();
+    let interno = 0, externo = 0, publico = 0;
     const lista = eventos.filter(ev => {
         const bData  = !mes   || ev.data.startsWith(mes);
         const bTexto = !busca || (ev.nome + ev.organizador + ev.local).toUpperCase().includes(busca);
         return bData && bTexto;
     });
+    for (const e of lista) {
+        if (e.tipo === 'Interno') interno++;
+        else if (e.tipo === 'Externo') externo++;
+        publico += parseInt(e.publico) || 0;
+    }
     document.getElementById('dash-eventos-qtd').innerText     = lista.length;
-    document.getElementById('dash-eventos-interno').innerText = lista.filter(e => e.tipo === 'Interno').length;
-    document.getElementById('dash-eventos-externo').innerText = lista.filter(e => e.tipo === 'Externo').length;
-    document.getElementById('dash-eventos-publico').innerText = lista.reduce((sum, ev) => sum + (parseInt(ev.publico) || 0), 0);
+    document.getElementById('dash-eventos-interno').innerText = interno;
+    document.getElementById('dash-eventos-externo').innerText = externo;
+    document.getElementById('dash-eventos-publico').innerText = publico;
 
     const btnExport = document.getElementById('btn-export-eventos');
     btnExport.style.display = pode('eventos', 'exportar') ? 'inline-flex' : 'none';
 
-    const tbody = document.querySelector('#tabela-eventos tbody');
-    if (lista.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem;">Nenhum evento encontrado.</td></tr>';
-        return;
-    }
-    tbody.innerHTML = lista.map(ev => {
-        const badgeClass  = ev.tipo === 'Interno' ? 'bg-interno' : 'bg-externo';
-        const iconCoffee  = ev.coffee ? '<i class="fas fa-coffee" style="color:#92400e;margin-left:6px;" title="Coffee Break"></i>' : '';
-        const obsText     = ev.obs ? `<div style="font-size:0.75rem;color:var(--text-muted);font-style:italic;margin-top:3px;border-top:1px dashed var(--border);padding-top:3px">${ev.obs}</div>` : '';
-        let buttons = '';
-        if (pode('eventos', 'editar'))  buttons += `<button onclick="editarEvento(${ev.id})" class="action-btn btn-edit"><i class="fas fa-pen"></i></button>`;
-        if (pode('eventos', 'excluir')) buttons += `<button onclick="deletarEvento(${ev.id})" class="action-btn btn-delete"><i class="fas fa-trash"></i></button>`;
-        return `<tr>
-            <td style="font-family:'JetBrains Mono',monospace;font-size:0.82rem;"><strong>${formatarData(ev.data)}</strong></td>
-            <td><span class="badge ${badgeClass}">${ev.tipo}</span></td>
-            <td><strong>${ev.nome}</strong>${iconCoffee}<br><small style="color:var(--text-muted)">${ev.local}</small>${obsText}</td>
-            <td>${ev.organizador}</td>
-            <td><strong style="font-family:'JetBrains Mono',monospace;">${ev.publico}</strong></td>
-            <td style="min-width:100px">${buttons}</td>
-        </tr>`;
-    }).join('');
+    renderPaginated({
+        tableId: 'tabela-eventos',
+        items:   lista,
+        rowFn:   criarLinhaEvento,
+        colspan: 6,
+        emptyMsg: 'Nenhum evento encontrado.',
+        filterKey: mes + '|' + busca,
+        rerender: window.renderizarApenasEventos
+    });
 };
 
 // ── CRUD ─────────────────────────────────────────────────────────
@@ -61,7 +72,7 @@ document.getElementById('form-evento').addEventListener('submit', async (e) => {
     else          registrarLog('Criação', 'Eventos', `Novo evento: ${novoEvento.nome}`);
     const { error } = await sb.from('eventos').upsert(novoEvento);
     if (error) alert('Erro: ' + error.message);
-    else { syncSheets('eventos', 'upsert', novoEvento); cancelarEdicaoEvento(); carregarDados(); }
+    else { syncSheets('eventos', 'upsert', novoEvento); cancelarEdicaoEvento(); carregarDados(['eventos']); }
 });
 
 window.editarEvento = function(id) {
@@ -99,5 +110,5 @@ window.deletarEvento = async function(id) {
     syncSheets('eventos', 'delete', { id });
     registrarLog('Exclusão', 'Eventos', `Removeu evento: ${item ? item.nome : id}`);
     if (document.getElementById('evento-id-edit').value == id) cancelarEdicaoEvento();
-    carregarDados();
+    carregarDados(['eventos']);
 };

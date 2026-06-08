@@ -2,48 +2,59 @@
 // DZEL — MÓDULO: CRACHÁS
 // ================================================================
 
+function criarLinhaCracha(c) {
+    const badgeClass = c.status === 'Solicitado'
+        ? 'bg-cracha-solicitado'
+        : c.status === 'Confeccionado'
+            ? 'bg-cracha-confeccionado'
+            : 'bg-cracha-entregue';
+    const dataEnt = c.data_entrega
+        ? `<br><small style="color:var(--success);font-weight:600;"><i class="fas fa-check"></i> ${new Date(c.data_entrega).toLocaleDateString('pt-BR')}</small>`
+        : '';
+    let buttons = '';
+    if (pode('crachas', 'editar'))  buttons += `<button onclick="editarCracha(${c.id})" class="action-btn btn-edit"><i class="fas fa-pen"></i></button>`;
+    if (pode('crachas', 'excluir')) buttons += `<button onclick="deletarCracha(${c.id})" class="action-btn btn-delete"><i class="fas fa-trash"></i></button>`;
+    return `<tr>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:0.82rem;">${formatarData(c.data_solicitacao)}</td>
+        <td><strong>${c.nome}</strong><br><small style="color:var(--text-muted)">DOC: ${c.doc_identidade || '-'}</small></td>
+        <td>${c.setor}<br><small style="color:var(--text-muted)">${c.cargo || '-'}</small></td>
+        <td>Sala: <strong>${c.sala || '-'}</strong><br><small style="color:var(--text-muted)">Ramal: ${c.ramal || '-'}</small></td>
+        <td><span class="badge ${badgeClass}">${c.status}</span>${dataEnt}</td>
+        <td>${buttons}</td>
+    </tr>`;
+}
+
 window.renderizarApenasCrachas = function() {
     const busca       = document.getElementById('filtro-busca-cracha').value.toUpperCase();
     const statusFiltro= document.getElementById('filtro-status-cracha').value;
+    let solic = 0, conf = 0, entr = 0;
     const lista = crachas.filter(c => {
         const termo      = (c.nome + c.setor + (c.doc_identidade || '')).toUpperCase();
         const bateTexto  = !busca        || termo.includes(busca);
         const bateStatus = !statusFiltro || c.status === statusFiltro;
         return bateTexto && bateStatus;
     });
-    document.getElementById('dash-cracha-solicitado').innerText   = lista.filter(c => c.status === 'Solicitado').length;
-    document.getElementById('dash-cracha-confeccionado').innerText= lista.filter(c => c.status === 'Confeccionado').length;
-    document.getElementById('dash-cracha-entregue').innerText     = lista.filter(c => c.status === 'Entregue').length;
+    for (const c of lista) {
+        if (c.status === 'Solicitado')         solic++;
+        else if (c.status === 'Confeccionado') conf++;
+        else if (c.status === 'Entregue')      entr++;
+    }
+    document.getElementById('dash-cracha-solicitado').innerText    = solic;
+    document.getElementById('dash-cracha-confeccionado').innerText = conf;
+    document.getElementById('dash-cracha-entregue').innerText      = entr;
 
     const btnExport = document.getElementById('btn-export-crachas');
     btnExport.style.display = pode('crachas', 'exportar') ? 'inline-flex' : 'none';
 
-    const tbody = document.querySelector('#tabela-crachas tbody');
-    if (lista.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem;">Nenhum crachá encontrado.</td></tr>';
-        return;
-    }
-    tbody.innerHTML = lista.map(c => {
-        const badgeClass = c.status === 'Solicitado'
-            ? 'bg-cracha-solicitado'
-            : c.status === 'Confeccionado'
-                ? 'bg-cracha-confeccionado'
-                : 'bg-cracha-entregue';
-        const dataEnt = c.data_entrega
-            ? `<br><small style="color:var(--success);font-weight:600;"><i class="fas fa-check"></i> ${new Date(c.data_entrega).toLocaleDateString('pt-BR')}</small>`
-            : '';
-        let buttons = '';
-        if (pode('crachas', 'editar'))  buttons += `<button onclick="editarCracha(${c.id})" class="action-btn btn-edit"><i class="fas fa-pen"></i></button>`;
-        if (pode('crachas', 'excluir')) buttons += `<button onclick="deletarCracha(${c.id})" class="action-btn btn-delete"><i class="fas fa-trash"></i></button>`;
-        return `<tr>
-            <td style="font-family:'JetBrains Mono',monospace;font-size:0.82rem;">${formatarData(c.data_solicitacao)}</td>
-            <td><strong>${c.nome}</strong><br><small style="color:var(--text-muted)">DOC: ${c.doc_identidade || '-'}</small></td>
-            <td>${c.setor}<br><small style="color:var(--text-muted)">${c.cargo || '-'}</small></td>
-            <td>Sala: <strong>${c.sala || '-'}</strong><br><small style="color:var(--text-muted)">Ramal: ${c.ramal || '-'}</small></td>
-            <td><span class="badge ${badgeClass}">${c.status}</span>${dataEnt}</td>
-            <td>${buttons}</td>
-        </tr>`;
-    }).join('');
+    renderPaginated({
+        tableId: 'tabela-crachas',
+        items:   lista,
+        rowFn:   criarLinhaCracha,
+        colspan: 6,
+        emptyMsg: 'Nenhum crachá encontrado.',
+        filterKey: busca + '|' + statusFiltro,
+        rerender: window.renderizarApenasCrachas
+    });
 };
 
 // ── CRUD ─────────────────────────────────────────────────────────
@@ -69,7 +80,7 @@ document.getElementById('form-cracha').addEventListener('submit', async (e) => {
     else          registrarLog('Criação', 'Crachás', `Solicitou crachá para: ${novoCracha.nome}`);
     const { error } = await sb.from('crachas').upsert(novoCracha);
     if (error) alert('Erro ao salvar crachá: ' + error.message);
-    else { syncSheets('crachas', 'upsert', novoCracha); cancelarEdicaoCracha(); carregarDados(); }
+    else { syncSheets('crachas', 'upsert', novoCracha); cancelarEdicaoCracha(); carregarDados(['crachas']); }
 });
 
 window.editarCracha = function(id) {
@@ -108,5 +119,5 @@ window.deletarCracha = async function(id) {
     syncSheets('crachas', 'delete', { id });
     registrarLog('Exclusão', 'Crachás', `Removeu crachá: ${item ? item.nome : id}`);
     if (document.getElementById('cracha-id-edit').value == id) cancelarEdicaoCracha();
-    carregarDados();
+    carregarDados(['crachas']);
 };

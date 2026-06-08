@@ -15,50 +15,61 @@ window.atualizarLabels = function() {
     }
 };
 
+function criarLinhaFrota(f) {
+    const badge = f.status === 'Aberto'
+        ? '<span class="badge bg-estacionado">ESTACIONADO</span>'
+        : '<span class="badge bg-saiu">FINALIZADO</span>';
+    const icon = f.tipo === 'servidor'
+        ? '<span style="color:var(--servidor);font-size:0.75rem;font-weight:700;"><i class="fas fa-id-badge"></i> Servidor</span>'
+        : '<span style="color:var(--visitante);font-size:0.75rem;font-weight:700;"><i class="fas fa-user-tag"></i> Visitante</span>';
+    const dIn  = formatarDataHoraReal(f.hora_inicial);
+    const dOut = f.hora_final ? formatarDataHoraReal(f.hora_final) : '-';
+    const btnBaixa = (f.status === 'Aberto' && pode('veiculos', 'editar'))
+        ? `<button onclick="baixaVeiculo(${f.id})" class="action-btn btn-baixa"><i class="fas fa-sign-out-alt"></i> Saída</button>`
+        : '<i class="fas fa-check" style="color:var(--success);"></i>';
+    let buttons = '';
+    if (pode('veiculos', 'editar'))  buttons += `<button onclick="editarVeiculo(${f.id})" class="action-btn btn-edit"><i class="fas fa-pen"></i></button>`;
+    if (pode('veiculos', 'excluir')) buttons += `<button onclick="deletarVeiculo(${f.id})" class="action-btn btn-delete"><i class="fas fa-trash"></i></button>`;
+    return `<tr>
+        <td>${badge}</td><td>${icon}</td>
+        <td><strong>${f.motorista}</strong><br><small style="color:var(--text-muted)">${f.contato || ''}</small></td>
+        <td>${f.carro}</td><td>${f.setor || '-'}</td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;">Ent: ${dIn}<br>Sai: ${dOut}</td>
+        <td style="min-width:140px">${btnBaixa}${buttons}</td>
+    </tr>`;
+}
+
 window.renderizarApenasFrota = function() {
     const mes   = document.getElementById('filtro-mes-frota').value;
     const busca = document.getElementById('filtro-busca-frota').value.toUpperCase();
+    let estac = 0, serv = 0, visit = 0;
     const lista = frota.filter(f => {
         const bData  = !mes   || f.hora_inicial.startsWith(mes);
         const bTexto = !busca || (f.motorista + f.carro + f.setor).toUpperCase().includes(busca);
         return bData && bTexto;
     });
-    document.getElementById('dash-frota-total').innerText       = lista.length;
-    document.getElementById('dash-frota-estacionados').innerText= lista.filter(f => f.status === 'Aberto').length;
-    document.getElementById('dash-servidor-count').innerText    = lista.filter(f => f.tipo === 'servidor').length;
-    document.getElementById('dash-visitante-count').innerText   = lista.filter(f => f.tipo === 'visitante').length;
+    for (const f of lista) {
+        if (f.status === 'Aberto')      estac++;
+        if (f.tipo === 'servidor')      serv++;
+        else if (f.tipo === 'visitante') visit++;
+    }
+    document.getElementById('dash-frota-total').innerText        = lista.length;
+    document.getElementById('dash-frota-estacionados').innerText = estac;
+    document.getElementById('dash-servidor-count').innerText     = serv;
+    document.getElementById('dash-visitante-count').innerText    = visit;
 
     const btnExport = document.getElementById('btn-export-veiculos');
     btnExport.style.display = pode('veiculos', 'exportar') ? 'inline-flex' : 'none';
 
-    const tbody = document.querySelector('#tabela-veiculos tbody');
-    if (lista.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:2rem;">Nenhum veículo encontrado.</td></tr>';
-        return;
-    }
-    tbody.innerHTML = lista.map(f => {
-        const badge = f.status === 'Aberto'
-            ? '<span class="badge bg-estacionado">ESTACIONADO</span>'
-            : '<span class="badge bg-saiu">FINALIZADO</span>';
-        const icon = f.tipo === 'servidor'
-            ? '<span style="color:var(--servidor);font-size:0.75rem;font-weight:700;"><i class="fas fa-id-badge"></i> Servidor</span>'
-            : '<span style="color:var(--visitante);font-size:0.75rem;font-weight:700;"><i class="fas fa-user-tag"></i> Visitante</span>';
-        const dIn  = formatarDataHoraReal(f.hora_inicial);
-        const dOut = f.hora_final ? formatarDataHoraReal(f.hora_final) : '-';
-        const btnBaixa = (f.status === 'Aberto' && pode('veiculos', 'editar'))
-            ? `<button onclick="baixaVeiculo(${f.id})" class="action-btn btn-baixa"><i class="fas fa-sign-out-alt"></i> Saída</button>`
-            : '<i class="fas fa-check" style="color:var(--success);"></i>';
-        let buttons = '';
-        if (pode('veiculos', 'editar'))  buttons += `<button onclick="editarVeiculo(${f.id})" class="action-btn btn-edit"><i class="fas fa-pen"></i></button>`;
-        if (pode('veiculos', 'excluir')) buttons += `<button onclick="deletarVeiculo(${f.id})" class="action-btn btn-delete"><i class="fas fa-trash"></i></button>`;
-        return `<tr>
-            <td>${badge}</td><td>${icon}</td>
-            <td><strong>${f.motorista}</strong><br><small style="color:var(--text-muted)">${f.contato || ''}</small></td>
-            <td>${f.carro}</td><td>${f.setor || '-'}</td>
-            <td style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;">Ent: ${dIn}<br>Sai: ${dOut}</td>
-            <td style="min-width:140px">${btnBaixa}${buttons}</td>
-        </tr>`;
-    }).join('');
+    renderPaginated({
+        tableId: 'tabela-veiculos',
+        items:   lista,
+        rowFn:   criarLinhaFrota,
+        colspan: 7,
+        emptyMsg: 'Nenhum veículo encontrado.',
+        filterKey: mes + '|' + busca,
+        rerender: window.renderizarApenasFrota
+    });
 };
 
 // ── CRUD ─────────────────────────────────────────────────────────
@@ -91,7 +102,7 @@ document.getElementById('form-veiculo').addEventListener('submit', async (e) => 
     }
     const { error } = await sb.from('frota').upsert(novoVeiculo);
     if (error) alert('Erro: ' + error.message);
-    else { syncSheets('frota', 'upsert', novoVeiculo); cancelarEdicaoVeiculo(); window.atualizarLabels(); carregarDados(); }
+    else { syncSheets('frota', 'upsert', novoVeiculo); cancelarEdicaoVeiculo(); window.atualizarLabels(); carregarDados(['frota']); }
 });
 
 window.editarVeiculo = function(id) {
@@ -138,7 +149,7 @@ window.deletarVeiculo = async function(id) {
     syncSheets('frota', 'delete', { id });
     registrarLog('Exclusão', 'Garagem', `Removeu veículo: ${item ? item.carro : id}`);
     if (document.getElementById('veiculo-id-edit').value == id) cancelarEdicaoVeiculo();
-    carregarDados();
+    carregarDados(['frota']);
 };
 
 window.baixaVeiculo = async function(id) {
@@ -147,5 +158,5 @@ window.baixaVeiculo = async function(id) {
     await sb.from('frota').update(upd).eq('id', id);
     const item = frota.find(f => f.id == id);
     syncSheets('frota', 'upsert', { ...item, ...upd });
-    carregarDados();
+    carregarDados(['frota']);
 };

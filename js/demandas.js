@@ -54,6 +54,7 @@ window.renderizarApenasDemandas = function() {
     const filtroMes    = document.getElementById('filtro-mes-demanda').value;
     const filtroStatus = document.getElementById('filtro-status-demanda').value;
     const filtroTexto  = document.getElementById('filtro-texto-demanda').value.toUpperCase();
+    let pend = 0, and = 0, conc = 0;
     const lista = demandas.filter(d => {
         const bateData   = !filtroMes    || d.data.startsWith(filtroMes);
         const bateStatus = !filtroStatus || d.status === filtroStatus;
@@ -61,14 +62,25 @@ window.renderizarApenasDemandas = function() {
         const bateTexto  = !filtroTexto  || textoGeral.includes(filtroTexto);
         return bateData && bateStatus && bateTexto;
     });
+    // Contadores em passagem única (antes eram 3 .filter() separados)
+    for (const d of lista) {
+        if (d.status === 'Pendente')          pend++;
+        else if (d.status === 'Em Andamento') and++;
+        else if (d.status === 'Concluído')    conc++;
+    }
     document.getElementById('dash-demanda-total').innerText     = lista.length;
-    document.getElementById('dash-demanda-pendente').innerText  = lista.filter(d => d.status === 'Pendente').length;
-    document.getElementById('dash-demanda-andamento').innerText = lista.filter(d => d.status === 'Em Andamento').length;
-    document.getElementById('dash-demanda-concluido').innerText = lista.filter(d => d.status === 'Concluído').length;
-    const tbody = document.querySelector('#tabela-demandas tbody');
-    tbody.innerHTML = lista.length === 0
-        ? '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem;">Nenhuma demanda encontrada.</td></tr>'
-        : lista.map(d => criarLinhaTabela(d)).join('');
+    document.getElementById('dash-demanda-pendente').innerText  = pend;
+    document.getElementById('dash-demanda-andamento').innerText = and;
+    document.getElementById('dash-demanda-concluido').innerText = conc;
+    renderPaginated({
+        tableId: 'tabela-demandas',
+        items:   lista,
+        rowFn:   criarLinhaTabela,
+        colspan: 6,
+        emptyMsg: 'Nenhuma demanda encontrada.',
+        filterKey: filtroMes + '|' + filtroStatus + '|' + filtroTexto,
+        rerender: window.renderizarApenasDemandas
+    });
 };
 
 window.renderizarAbasEspecificas = function() {
@@ -76,22 +88,33 @@ window.renderizarAbasEspecificas = function() {
         const mes    = document.getElementById(`filtro-mes-${prefixo}`).value;
         const busca  = document.getElementById(`filtro-busca-${prefixo}`).value.toUpperCase();
         const status = document.getElementById(`filtro-status-${prefixo}`).value;
-        const listaFinal = demandas
-            .filter(d => getCategoriaDemanda(d) === categoriaAlvo)
-            .filter(d => {
-                const bateMes    = !mes    || d.data.startsWith(mes);
-                const bateBusca  = !busca  || (d.titulo + ' ' + d.setor + ' ' + d.solicitante).includes(busca);
-                const bateStatus = !status || d.status === status;
-                return bateMes && bateBusca && bateStatus;
-            });
+        let pend = 0, and = 0, conc = 0;
+        const listaFinal = demandas.filter(d => {
+            // usa categoria pré-computada (d._categoria) em vez de recalcular
+            if ((d._categoria || getCategoriaDemanda(d)) !== categoriaAlvo) return false;
+            const bateMes    = !mes    || d.data.startsWith(mes);
+            const bateBusca  = !busca  || (d.titulo + ' ' + d.setor + ' ' + d.solicitante).includes(busca);
+            const bateStatus = !status || d.status === status;
+            return bateMes && bateBusca && bateStatus;
+        });
+        for (const d of listaFinal) {
+            if (d.status === 'Pendente')          pend++;
+            else if (d.status === 'Em Andamento') and++;
+            else if (d.status === 'Concluído')    conc++;
+        }
         document.getElementById(`dash-${prefixo}-total`).innerText     = listaFinal.length;
-        document.getElementById(`dash-${prefixo}-pendente`).innerText  = listaFinal.filter(d => d.status === 'Pendente').length;
-        document.getElementById(`dash-${prefixo}-andamento`).innerText = listaFinal.filter(d => d.status === 'Em Andamento').length;
-        document.getElementById(`dash-${prefixo}-concluido`).innerText = listaFinal.filter(d => d.status === 'Concluído').length;
-        const tbody = document.querySelector(`#tabela-${prefixo} tbody`);
-        tbody.innerHTML = listaFinal.length === 0
-            ? '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:2rem;">Nenhum registro.</td></tr>'
-            : listaFinal.map(d => criarLinhaTabelaSimples(d, prefixo)).join('');
+        document.getElementById(`dash-${prefixo}-pendente`).innerText  = pend;
+        document.getElementById(`dash-${prefixo}-andamento`).innerText = and;
+        document.getElementById(`dash-${prefixo}-concluido`).innerText = conc;
+        renderPaginated({
+            tableId: `tabela-${prefixo}`,
+            items:   listaFinal,
+            rowFn:   (d) => criarLinhaTabelaSimples(d, prefixo),
+            colspan: 6,
+            emptyMsg: 'Nenhum registro.',
+            filterKey: mes + '|' + busca + '|' + status,
+            rerender: window.renderizarAbasEspecificas
+        });
     }
     renderizarAba('predial', 'PREDIAL');
     renderizarAba('ar',      'AR');
@@ -120,7 +143,7 @@ async function salvarDemandaEspecifica(prefixo, contratadaFixa) {
         const brt = DateUtils.getToInput();
         document.getElementById(`${prefixo}-data`).value = brt.slice(0, 10);
         document.getElementById(`${prefixo}-hora`).value = brt.slice(11, 16);
-        carregarDados();
+        carregarDados(['demandas']);
     }
 }
 
@@ -131,7 +154,7 @@ window.avancarStatus = async function(id) {
     else if (item.status === 'Em Andamento') { novoStatus = 'Concluído'; novaDataFim = DateUtils.getNowDatabaseISO(); }
     await sb.from('demandas').update({ status: novoStatus, data_fim: novaDataFim }).eq('id', id);
     syncSheets('demandas', 'upsert', { ...item, status: novoStatus, data_fim: novaDataFim });
-    carregarDados();
+    carregarDados(['demandas']);
 };
 
 window.deletarDemanda = async function(id) {
@@ -141,7 +164,7 @@ window.deletarDemanda = async function(id) {
     syncSheets('demandas', 'delete', { id });
     registrarLog('Exclusão', 'Demandas', `Removeu demanda: ${item ? item.titulo : id}`);
     if (document.getElementById('demanda-id-edit').value == id) cancelarEdicaoDemanda();
-    carregarDados();
+    carregarDados(['demandas']);
 };
 
 window.editarDemanda = function(id) {
@@ -211,7 +234,7 @@ document.getElementById('form-demanda').addEventListener('submit', async (e) => 
         const res = await sb.from('demandas').insert(novaDemanda); error = res.error;
         if (!error) { registrarLog('Criação', 'Demandas', 'Nova O.S. Gerada'); syncSheets('demandas', 'insert', novaDemanda); }
     }
-    if (error) alert('Erro: ' + error.message); else { cancelarEdicaoDemanda(); carregarDados(); }
+    if (error) alert('Erro: ' + error.message); else { cancelarEdicaoDemanda(); carregarDados(['demandas']); }
 });
 
 // Debounce busca de texto
@@ -303,6 +326,7 @@ async function gerarPDFOS(id, descricao, materiais) {
     btnPDF.disabled  = true;
 
     try {
+        await ensureJsPDF();   // carrega jsPDF sob demanda
         const d = montarDadosOS(id);
         if (!d) throw new Error('O.S. não encontrada.');
 

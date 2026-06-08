@@ -6,18 +6,22 @@
     <link rel="apple-touch-icon" href="favicon.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Divisão de Zeladoria | Dzel</title>
+
+    <!-- Preconnect: acelera o handshake com os domínios externos -->
+    <link rel="preconnect" href="https://cmdmjprdsxglfjvohcyp.supabase.co" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <!-- Dependências externas -->
+
+    <!-- Apenas o cliente Supabase é essencial no boot.
+         XLSX, Chart.js e jsPDF são carregados sob demanda (js/libs.js). -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
     <!-- Estilos -->
     <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
 </head>
 <body>
 
@@ -342,7 +346,7 @@
                 <div class="card">
                     <div class="filter-container">
                         <div class="filter-group"><label>Mês Ref:</label><input type="month" id="filtro-mes-predial" onchange="window.renderizarAbasEspecificas()"></div>
-                        <div class="filter-group"><label>Buscar:</label><input type="text" id="filtro-busca-predial" onkeyup="window.renderizarAbasEspecificas()" placeholder="Filtrar..."></div>
+                        <div class="filter-group"><label>Buscar:</label><input type="text" id="filtro-busca-predial" placeholder="Filtrar..."></div>
                         <div class="filter-group"><label>Status:</label>
                             <select id="filtro-status-predial" onchange="window.renderizarAbasEspecificas()">
                                 <option value="">Todos</option><option value="Pendente">Pendente</option><option value="Em Andamento">Em Andamento</option><option value="Concluído">Concluído</option>
@@ -380,7 +384,7 @@
                 <div class="card">
                     <div class="filter-container">
                         <div class="filter-group"><label>Mês Ref:</label><input type="month" id="filtro-mes-ar" onchange="window.renderizarAbasEspecificas()"></div>
-                        <div class="filter-group"><label>Buscar:</label><input type="text" id="filtro-busca-ar" onkeyup="window.renderizarAbasEspecificas()" placeholder="Filtrar..."></div>
+                        <div class="filter-group"><label>Buscar:</label><input type="text" id="filtro-busca-ar" placeholder="Filtrar..."></div>
                         <div class="filter-group"><label>Status:</label>
                             <select id="filtro-status-ar" onchange="window.renderizarAbasEspecificas()">
                                 <option value="">Todos</option><option value="Pendente">Pendente</option><option value="Em Andamento">Em Andamento</option><option value="Concluído">Concluído</option>
@@ -418,7 +422,7 @@
                 <div class="card">
                     <div class="filter-container">
                         <div class="filter-group"><label>Mês Ref:</label><input type="month" id="filtro-mes-limpeza" onchange="window.renderizarAbasEspecificas()"></div>
-                        <div class="filter-group"><label>Buscar:</label><input type="text" id="filtro-busca-limpeza" onkeyup="window.renderizarAbasEspecificas()" placeholder="Filtrar..."></div>
+                        <div class="filter-group"><label>Buscar:</label><input type="text" id="filtro-busca-limpeza" placeholder="Filtrar..."></div>
                         <div class="filter-group"><label>Status:</label>
                             <select id="filtro-status-limpeza" onchange="window.renderizarAbasEspecificas()">
                                 <option value="">Todos</option><option value="Pendente">Pendente</option><option value="Em Andamento">Em Andamento</option><option value="Concluído">Concluído</option>
@@ -471,7 +475,7 @@
                 <div class="card">
                     <div class="filter-container">
                         <div class="filter-group"><label>Mês de Referência:</label><input type="month" id="filtro-mes-vis" onchange="window.renderizarApenasVisitantes()"></div>
-                        <div class="filter-group"><label>Buscar (Nome/Doc/Empresa):</label><input type="text" id="filtro-busca-vis" onkeyup="window.renderizarApenasVisitantes()" placeholder="Digite para filtrar..."></div>
+                        <div class="filter-group"><label>Buscar (Nome/Doc/Empresa):</label><input type="text" id="filtro-busca-vis" placeholder="Digite para filtrar..."></div>
                         <button id="btn-export-visitantes" class="btn-excel" onclick="exportarExcel('visitantes')"><i class="fas fa-file-excel"></i> Exportar</button>
                     </div>
                     <div class="table-container">
@@ -518,7 +522,7 @@
                 <div class="card">
                     <div class="filter-container">
                         <div class="filter-group"><label>Mês Ref:</label><input type="month" id="filtro-mes-frota" onchange="window.renderizarApenasFrota()"></div>
-                        <div class="filter-group"><label>Buscar:</label><input type="text" id="filtro-busca-frota" onkeyup="window.renderizarApenasFrota()" placeholder="Nome/Placa..."></div>
+                        <div class="filter-group"><label>Buscar:</label><input type="text" id="filtro-busca-frota" placeholder="Nome/Placa..."></div>
                         <button id="btn-export-veiculos" class="btn-excel" onclick="exportarExcel('frota')"><i class="fas fa-file-excel"></i> Exportar</button>
                     </div>
                     <div class="table-container">
@@ -567,7 +571,7 @@
                 <div class="card">
                     <div class="filter-container">
                         <div class="filter-group"><label>Filtrar Mês:</label><input type="month" id="filtro-mes-evento" onchange="window.renderizarApenasEventos()"></div>
-                        <div class="filter-group"><label>Buscar:</label><input type="text" id="filtro-busca-evento" onkeyup="window.renderizarApenasEventos()" placeholder="Nome do evento..."></div>
+                        <div class="filter-group"><label>Buscar:</label><input type="text" id="filtro-busca-evento" placeholder="Nome do evento..."></div>
                         <button id="btn-export-eventos" class="btn-excel" onclick="exportarExcel('eventos')"><i class="fas fa-file-excel"></i> Exportar</button>
                     </div>
                     <div class="table-container">
@@ -609,7 +613,7 @@
                 </div>
                 <div class="card">
                     <div class="filter-container">
-                        <div class="filter-group"><label>Buscar (Nome/Setor/RG):</label><input type="text" id="filtro-busca-cracha" onkeyup="window.renderizarApenasCrachas()" placeholder="Digite para buscar..."></div>
+                        <div class="filter-group"><label>Buscar (Nome/Setor/RG):</label><input type="text" id="filtro-busca-cracha" placeholder="Digite para buscar..."></div>
                         <div class="filter-group"><label>Status:</label>
                             <select id="filtro-status-cracha" onchange="window.renderizarApenasCrachas()">
                                 <option value="">Todos</option><option value="Solicitado">Solicitados</option><option value="Confeccionado">Prontos</option><option value="Entregue">Entregues</option>
@@ -686,7 +690,7 @@
                 <div class="card">
                     <div class="filter-container">
                         <div class="filter-group"><label>Mês Ref:</label><input type="month" id="filtro-mes-oco" onchange="window.renderizarApenasOcorrencias()"></div>
-                        <div class="filter-group"><label>Buscar:</label><input type="text" id="filtro-busca-oco" onkeyup="window.renderizarApenasOcorrencias()" placeholder="Local, descrição..."></div>
+                        <div class="filter-group"><label>Buscar:</label><input type="text" id="filtro-busca-oco" placeholder="Local, descrição..."></div>
                         <div class="filter-group"><label>Status:</label>
                             <select id="filtro-status-oco" onchange="window.renderizarApenasOcorrencias()">
                                 <option value="">Todos</option>
@@ -772,7 +776,9 @@
          SCRIPTS — carregados na ordem correta de dependência
          ============================================================ -->
     <script src="js/config.js"></script>
+    <script src="js/libs.js"></script>
     <script src="js/utils.js"></script>
+    <script src="js/pagination.js"></script>
     <script src="js/sync.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/realtime.js"></script>
